@@ -1,6 +1,10 @@
-﻿using System;
-using System.Management;
+﻿using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Win32;
+using System.Diagnostics;                   // Process.Start
+using System.Management;
+using System.Runtime.InteropServices;       // Marshal.ReleaseComObject
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace BodyWorkReservation
 {
@@ -13,6 +17,13 @@ namespace BodyWorkReservation
         public static readonly string PROGRAM_TITLE = "[KGA003SF] からだや予約システム";
         public static readonly string PROGRAM_NAME = "BodyWorkReservation";
         public static readonly string PROGRAM_VERSION = "260906.01";
+
+        // 管理者【森下政宏：モリシタマサヒロ、藤田彩華：フジタアヤカ】
+        public static readonly string[] ADMIN_CODES = [
+            "10794",
+            "21292"
+        ];
+        public static bool IsAdmin { get; set; }  // 管理者モード
 
         // 時間帯
         public static readonly string[] TIMESLOT_NAME = [
@@ -50,6 +61,7 @@ namespace BodyWorkReservation
         public static readonly string MSG_KM8420_REFRESH_FAILURE = "データベースの更新に失敗しました";
 
         public static readonly string MSG_PROGRAM_ERROR = "プログラムの想定エラーが発生しました";
+
 
 
         /*
@@ -104,6 +116,8 @@ namespace BodyWorkReservation
             return appConfig;
         }
 
+
+
         /*
          * クラス関連
          */
@@ -149,27 +163,38 @@ namespace BodyWorkReservation
             }
             // データグリッド上の表示はここで決まる【施術内容】
             public override string ToString()
-            {
-                return Treatment;
+            {                
+                return (IsAdmin) ? EmpName : "済";
             }
         }
 
 
+
+        /*
+         * メソッド関連
+         */
+
+        // 管理者判定
+        public static bool 管理者判定(string loginid)
+        {
+            IsAdmin = ADMIN_CODES.Contains(loginid);
+            return IsAdmin;
+        }
+
+        // デバイス一覧に RC-S380 または PaSoRi が存在するかを確認する
         public static bool IsNfcPortDriverInstalled()
         {
             try
             {
-                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity"))
+                using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
                 {
-                    foreach (ManagementObject obj in searcher.Get())
-                    {
-                        string name = obj["Name"]?.ToString() ?? "";
+                    string name = obj["Name"]?.ToString() ?? "";
 
-                        if (name.IndexOf("RC-S380", StringComparison.OrdinalIgnoreCase) >= 0
-                        || name.IndexOf("PaSoRi", StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            return true;
-                        }
+                    if (name.Contains("RC-S380", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("PaSoRi", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
                     }
                 }
             }
@@ -181,71 +206,121 @@ namespace BodyWorkReservation
             return false;
         }
 
+        // Excel がインストールされているかレジストリを確認する
+        public static bool IsExcelInstalled()
+        {
+            using var key = Registry.ClassesRoot.OpenSubKey("Excel.Application");
+            return key != null;
+        }
+
+        // 「集計データ出力」
+        public static void ExportExcel(DataGridView dgv, string savefullpath)
+        {
+            // ① DataGridView から Order を抽出
+            var orders = new List<Order>();
+
+            foreach (DataGridViewRow row in dgv.Rows)
+            {
+                foreach (DataGridViewCell cell in row.Cells)
+                {
+                    if (cell.Value is Order o)
+                    {
+                        orders.Add(o);
+                    }
+                }
+            }
+
+            // ② 従業員番号でグループ化（EmpNo, EmpName, Count）
+            var summary = orders
+                .GroupBy(o => new { o.EmpNo, o.EmpName })
+                .Select(g => new
+                {
+                    g.Key.EmpNo,
+                    g.Key.EmpName,
+                    Count = g.Count()
+                })
+                .OrderBy(x => x.EmpNo)
+                .ToList();
+
+            // ③ Excel Interop で出力
+            Excel.Application? excelApp = null; // Excel オブジェクト
+            Excel.Workbook? book = null;        // Workbook オブジェクト
+            Excel.Worksheet? sheet = null;      // Worksheet オブジェクト
+            try
+            {
+                excelApp = new()
+                {
+                    Visible = false
+                };
+                book = excelApp.Workbooks.Add();
+                sheet = (Excel.Worksheet)book.ActiveSheet;
+
+                // ヘッダ
+                sheet.Cells[1, 1].Value = "社員番号";
+                sheet.Cells[1, 2].Value = "氏名";
+                sheet.Cells[1, 3].Value = "回数";
+
+                int rowIndex = 2;
+
+                foreach (var s in summary)
+                {
+                    sheet.Cells[rowIndex, 1].Value = s.EmpNo;
+                    sheet.Cells[rowIndex, 2].Value = s.EmpName;
+                    sheet.Cells[rowIndex, 3].Value = s.Count;
+                    rowIndex++;
+                }
+
+                // 別名で保存（Desktopに作成）
+                book.SaveAs(savefullpath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("エラー: " + ex.Message, Common.PROGRAM_TITLE, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (book != null)
+                {
+                    book.Close(false);
+                    Marshal.ReleaseComObject(book);
+                    book = null;
+                }
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                if (excelApp != null)
+                {
+                    excelApp.Quit();
+                    Marshal.ReleaseComObject(excelApp);
+                    excelApp = null;
+                }
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                // 関連付けられたアプリでExcelを開く
+                if (File.Exists(@savefullpath))
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = @savefullpath,
+                        UseShellExecute = true
+                    };
+                    Process.Start(psi);
+                }
+            }
+
+
+        }
+
+
+
+
+
 
 
 
     }
 
-
-
-
-
-    public static class ParseExtensions
-    {
-        public static double ToDoubleSafe(this object value, double defaultValue = 0)
-        {
-            if (value == null || value == DBNull.Value) return defaultValue;
-            if (double.TryParse(value.ToString(), out double result))
-                return result;
-            return defaultValue;
-        }
-        public static int? ToIntNullable(this object value)
-        {
-            if (value == null || value == DBNull.Value)
-                return null;
-
-            if (int.TryParse(value.ToString(), out int result))
-                return result;
-
-            return null;
-        }
-    }
-
-    public static class ConsoleExtensions
-    {
-        /// <summary>
-        /// 文字列を PAD_SIZE で PadLeft して Console.WriteLine する。
-        /// </summary>
-        public static void ConsoleWriteLinePadded(this string value)
-        {
-            Console.WriteLine(" ".PadLeft(Common.MSG_PAD) + value);
-        }
-    }
-
-    public static class CompareExtensions
-    {
-        private const double EPS = 0.0000001;
-        public static bool NearlyEquals(this double a, double b)
-        {
-            return Math.Abs(a - b) < EPS;
-        }
-        public static bool IntEquals(this int? a, int? b)
-        {
-            if (a == null && b == null) return true;
-            if (a == null || b == null) return false;
-            return a.Value == b.Value;
-        }
-    }
-
-
-    internal static class AssemblyState
-    {
-        public const bool IsDebug =
-#if DEBUG
-        true;
-#else
-        false;
-#endif
-    }
 
 }

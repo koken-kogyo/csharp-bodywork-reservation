@@ -30,6 +30,16 @@
                 comboBoxTreatment.Text = order.Treatment;
                 buttonAppoint.Text = "予約変更";
             }
+
+            // 過去オーダーは参照に設定
+            if (order.ReservDt < DateTime.Today)
+            {
+                buttonAppoint.Enabled = false;
+                buttonCancelAppoint.Enabled = false;
+                comboBoxTreatment.Enabled = false;
+                textBoxNote.Enabled = false;
+            }
+
             this._isNewOrder = isNewOrder;
             this._order = order;
         }

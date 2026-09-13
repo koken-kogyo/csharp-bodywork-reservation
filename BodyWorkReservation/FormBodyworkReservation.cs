@@ -1,6 +1,9 @@
-﻿using PCSC;
+﻿using Org.BouncyCastle.Asn1.X509;
+using PCSC;
 using PCSC.Exceptions;
 using PCSC.Monitoring;
+using System.Diagnostics;
+using System.Threading;
 using System.Windows.Forms;
 using Timer = System.Windows.Forms.Timer;
 
@@ -8,10 +11,12 @@ namespace BodyWorkReservation
 {
     public partial class FormBodyworkReservation : Form
     {
+        private DateTime _currentDate = DateTime.Today;
         private readonly List<DateTime> _thursdays = [];
-        public string _empno = string.Empty;
-        public string _empname = string.Empty;
-        public bool _isAdministrator = false;
+        private string _loginid = string.Empty;
+        private bool _isAdministrator = false;
+        private string _empno = string.Empty;
+        private string _empname = string.Empty;
 
         private ISCardMonitor? _monitor = null;
         private string _readerName = "Sony FeliCa Port/PaSoRi 3.0 0";
@@ -36,8 +41,30 @@ namespace BodyWorkReservation
         private void FormBodyWorkReservation_Load(object sender, EventArgs e)
         {
             labelEmpName.Text = "";
-            labelFelicaIDm.Text = "";
+            labelFelicaIDm2.Text = "";
+            buttonExportExcel.Visible = false;
 
+            // 年月選択コンボボックスの初期化
+            SetupMonthCombo();
+            comboMonth.Visible = false;
+
+            // 初期日付の設定と初期データの読み込み
+            var d = DateTime.Today;
+            _currentDate = (d.Day > 20)
+                ? new DateTime(d.Year, d.Month, 1).AddMonths(1)
+                : new DateTime(d.Year, d.Month, 1);
+            ReadMonthlyData();
+
+            // カードリーダー初期化
+            InitializePcscMonitor();
+        }
+
+        private void ReadMonthlyData()
+        {
+            // 月度表示
+            labelMonthly.Text = _currentDate.ToString("M月度開催");
+
+            // データグリッドビューの列を生成
             GenerateThursdayColumns();
             for (int i = 0; i < 6; i++)
             {
@@ -52,26 +79,39 @@ namespace BodyWorkReservation
             予約データ取得();
             自分の予約一覧に色を付ける();
 
-            // リサイズイベントでセル幅とセル高さを等分に分ける
-            FormBodyWorkReservation_Resize(sender, e);
-
-            // カードリーダー初期化
-            InitializePcscMonitor();
+            // セル幅とセル高さを等分に分ける
+            AdjustColumnWidth();
+            AdjustRowHeight();
+            AdjustFontSize();
         }
-
+        // 「前月」ボタン
+        private void ButtonPrevMonth_Click(object sender, EventArgs e)
+        {
+            DateTime now = DateTime.Today;
+            if (now.Day > 20) now = now.AddMonths(1);
+            if (_currentDate.AddMonths(-1) < now.AddMonths(-7)) return;
+            _currentDate = _currentDate.AddMonths(-1);
+            ReadMonthlyData();
+            DataGridViewSelectionClear(sender, e);
+        }
+        // 「翌月」ボタン
+        private void ButtonNextMonth_Click(object sender, EventArgs e)
+        {
+            DateTime now = DateTime.Today;
+            if (now.Day > 20) now = now.AddMonths(1);
+            if (_currentDate.AddMonths(1) > now.AddMonths(3)) return;
+            _currentDate = _currentDate.AddMonths(1);
+            ReadMonthlyData();
+            DataGridViewSelectionClear(sender, e);
+        }
         // データグリッドの選択状態をクリアするにはActivatedかShownしかない！
         private void DataGridViewSelectionClear(object sender, EventArgs e)
         {
-            //labelStatus.Focus(); // 画面からフォーカスを外したい
             dataGridView1.ClearSelection();
             dataGridView1.CurrentCell = null;
         }
         private void FormBodyWorkReservation_Resize(object sender, EventArgs e)
         {
-            if (_monitor == null)
-            {
-                labelStatus.Width = this.Width - 60;
-            }
             AdjustColumnWidth();
             AdjustRowHeight();
             AdjustFontSize();
@@ -127,6 +167,29 @@ namespace BodyWorkReservation
             dataGridView1.DefaultCellStyle.Font = font;
             dataGridView1.ColumnHeadersDefaultCellStyle.Font = font;
             dataGridView1.RowHeadersDefaultCellStyle.Font = font;
+
+            labelEmpName.AutoSize = false;
+            labelEmpName.TextAlign = ContentAlignment.MiddleRight;
+            labelEmpName.Font = font;
+
+            float fontSizeM = formWidth * 0.018f;
+            var fontM = new Font("HGPｺﾞｼｯｸE", fontSizeM);
+            labelMonthly.Font = fontM;
+            comboMonth.Font = fontM;
+            comboMonth.Width = (int)(labelMonthly.Width * 1.3f);
+
+            var h = labelMonthly.Height;
+            var base_y = panel1.Height - 5;
+            labelMonthly.Top = base_y - h - 1;
+            buttonPrevMonth.Height = h;
+            buttonPrevMonth.Top = base_y - h;
+            buttonNextMonth.Height = h;
+            buttonNextMonth.Top = base_y - h;
+            buttonNextMonth.Left = labelMonthly.Right + 12;
+            buttonExportExcel.Height = h;
+            buttonExportExcel.Top = base_y - h;
+            buttonExportExcel.Left = buttonNextMonth.Right + 12;
+
         }
 
         // キーボードショートカット「Esc」でプログラム終了
@@ -138,15 +201,111 @@ namespace BodyWorkReservation
                 this.Close();
             }
         }
-        // 異常時はLabelStatusをクリックまたはタップでプログラム終了
-        private void LabelStatus_Click(object sender, EventArgs e)
+        // （隠れコマンド）④ダブルクリックでプログラム終了
+        private void DataGridView1_RowHeaderMouseDoubleClick(object sender, DataGridViewCellMouseEventArgs e)
         {
-            if (_monitor == null)
+            if (e.RowIndex == 3 && e.ColumnIndex == -1)
             {
+                _monitor = null;
                 this.Close();
             }
         }
 
+
+
+        /*
+         * 年月選択コンボボックス関連の処理ここから
+         */
+        private void SetupMonthCombo()
+        {
+            comboMonth.DropDownStyle = ComboBoxStyle.DropDownList;
+
+            // 今日を基準に過去6か月〜未来3か月を作成
+            DateTime now = DateTime.Today;
+            if (now.Day > 20) now = now.AddMonths(1);
+
+            for (int i = -6; i <= 3; i++)
+            {
+                DateTime target = new DateTime(now.Year, now.Month, 1).AddMonths(i);
+                comboMonth.Items.Add(target.ToString("yyyy年 MM月"));
+            }
+
+            // 初期選択（今月）
+            comboMonth.SelectedItem = new DateTime(now.Year, now.Month, 1).ToString("yyyy年 MM月");
+        }
+        private void LabelMonthly_Click(object sender, EventArgs e)
+        {
+            if (comboMonth.Visible)
+            {
+                comboMonth.Visible = false;
+            }
+            else
+            {
+                comboMonth.Left = labelMonthly.Left;
+                comboMonth.Top = 0;
+                comboMonth.SelectedItem = _currentDate.ToString("yyyy年 MM月");
+
+                comboMonth.Visible = true;
+                comboMonth.BringToFront();
+
+                comboMonth.DroppedDown = true;   // ★これで即展開
+            }
+        }
+        private void ComboMonth_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (comboMonth.SelectedItem == null) return;
+            string s = comboMonth.SelectedItem.ToString() ?? "1900年 01月";
+            int y = Convert.ToInt32(s.Split("年")[0]);
+            int m = Convert.ToInt32(s.Split("年")[1].Split("月")[0]);
+            _currentDate = new DateTime(y, m, 1);
+            ReadMonthlyData();
+            DataGridViewSelectionClear(sender, e);
+            comboMonth.Visible = false;
+        }
+        private void Panel1_Click(object sender, EventArgs e)
+        {
+            comboMonth.Visible = false;
+        }
+
+        /*
+         * 年月選択コンボボックス関連の処理ここまで
+         */
+
+
+
+
+        /*
+         * Excel出力関連の処理ここから
+         */
+        private void ButtonExportExcel_Click(object sender, EventArgs e)
+        {
+            if (!Common.IsExcelInstalled())
+            {
+                MessageBox.Show("Microsoft Excel がインストールされていません．", "Excel出力",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            int m = _currentDate.Month;
+            string saveFullPath = @$"{desktop}\からだや予約集計_{m}月度.xlsx";
+            if (Path.Exists(saveFullPath))
+            {
+                if (MessageBox.Show($"既にファイルが存在しています．\n上書きしてもよろしいですか？", "上書き確認",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                {
+                    File.Delete(saveFullPath);
+                }
+                else
+                {
+                    return;
+                }
+            }
+            // 実績一覧Excelを出力し別プロセスで開く
+            Common.ExportExcel(dataGridView1, saveFullPath);
+        }
+        /*
+         * Excel出力関連の処理ここまで
+         */
 
 
 
@@ -164,15 +323,8 @@ namespace BodyWorkReservation
             dataGridView1.Columns.Clear();
             _thursdays.Clear();
 
-            // 今日を基準に「20日締めの期間」を計算
-            DateTime today = DateTime.Today;
-
             // 締め日が過ぎているかどうかで期間を決める
-            DateTime periodEnd =
-                today.Day >= 20
-                ? new DateTime(today.Year, today.Month, 20).AddMonths(1)
-                : new DateTime(today.Year, today.Month, 20);
-
+            DateTime periodEnd = new(_currentDate.Year, _currentDate.Month, 20);
             DateTime periodStart = periodEnd.AddMonths(-1).AddDays(1); // 前月21日
 
             // 木曜日だけ抽出
@@ -189,7 +341,7 @@ namespace BodyWorkReservation
             {
                 var col = new DataGridViewTextBoxColumn
                 {
-                    HeaderText = th.ToString("MM/dd (木)"),
+                    HeaderText = th.ToString("M/d (木)"),
                     Name = th.ToString("yyyyMMdd")
                 };
                 col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -202,16 +354,31 @@ namespace BodyWorkReservation
         // 「セル」クリックイベント
         private void DataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (_empno == string.Empty || e.RowIndex == -1 || e.ColumnIndex == -1)
+            if (e.RowIndex == -1 || e.ColumnIndex == -1)
             {
                 DataGridViewSelectionClear(sender, e);
                 return;
             }
-            idleTimer.Stop();
-            int row = e.RowIndex;
-            DateTime reservdt = _thursdays[e.ColumnIndex];
             var cell = dataGridView1[e.ColumnIndex, e.RowIndex];
-            var order = (Common.Order)cell.Value;
+            if (_empno == string.Empty)
+            {
+                if (cell.Style.BackColor != Color.LightSlateGray)
+                {
+                    var msg = (_monitor != null) ? "社員証を読み取るか、" : "";
+                    msg += "従業員番号を入力してください．";
+                    MessageBox.Show(msg, "予約登録", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                DataGridViewSelectionClear(sender, e);
+                return;
+            }
+#pragma warning disable CS8622
+            idleTimer.Stop();
+            _filter.UserActivity -= ResetIdleTimer;
+            //Debug.Print(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " StopCellClick");
+#pragma warning restore CS8622
+            var order = (cell.Value is Common.Order cellOrder)
+                ? cellOrder
+                : null;
             if (order == null)
             {
                 if (cell.Style.BackColor == Color.LightSlateGray) // ①②の重複予約不可
@@ -221,8 +388,8 @@ namespace BodyWorkReservation
                 }
                 order = new Common.Order
                 {
-                    ReservDt = reservdt,
-                    TimeSlot = row,
+                    ReservDt = _thursdays[e.ColumnIndex],
+                    TimeSlot = e.RowIndex,
                     EmpNo = _empno,
                     EmpName = _empname,
                 };
@@ -260,7 +427,11 @@ namespace BodyWorkReservation
                 }
             }
             自分の予約一覧に色を付ける();
+#pragma warning disable CS8622
             idleTimer.Start();
+            _filter.UserActivity += ResetIdleTimer;
+            //Debug.Print(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " StartCellClick");
+#pragma warning restore CS8622
         }
         // ポップアップウィンドウを表示させる位置を計算
         private Point PopupPoint(object sender, DataGridViewCellEventArgs e)
@@ -313,7 +484,16 @@ namespace BodyWorkReservation
                             : Color.LightSlateGray;
 
                         // ②に予約が入っている時は①の予約を出来ないようグレーアウトする
-                        if (rowIdx == 1) dataGridView1[colIdx, 0].Style.BackColor = Color.LightSlateGray;
+                        if (rowIdx == 1)
+                        {
+                            dataGridView1[colIdx, 0].Style.BackColor = Color.LightSlateGray;
+                            dataGridView1[colIdx, 0].Value = "－";
+                        }
+                        // ③当然過去日付はグレーアウトする
+                        if (_thursdays[colIdx] < DateTime.Today)
+                        {
+                            cell.Style.BackColor = Color.LightSlateGray;
+                        }
                     }
                     else
                     {
@@ -321,11 +501,18 @@ namespace BodyWorkReservation
                         if (rowIdx == 1 && dataGridView1[colIdx, 0].Value is Common.Order)
                         {
                             dataGridView1[colIdx, 1].Style.BackColor = Color.LightSlateGray;
+                            dataGridView1[colIdx, 1].Value = "－";
                         }
                         else
                         {
                             dataGridView1[colIdx, rowIdx].Style.BackColor =
                                 dataGridView1.DefaultCellStyle.BackColor;
+                        }
+                        // ③当然過去日付はグレーアウトする
+                        if (_thursdays[colIdx] < DateTime.Today)
+                        {
+                            cell.Style.BackColor = Color.LightSlateGray;
+                            cell.Value = "－";
                         }
                     }
                     cell.Style.ForeColor = Color.White;
@@ -362,6 +549,7 @@ namespace BodyWorkReservation
             //}
 
             var dt = DBManager_MySQL.予約データ取得(_thursdays);
+            buttonExportExcel.Enabled = (dt.Rows.Count > 0);
             foreach (System.Data.DataRow dr in dt.Rows)
             {
                 DateTime reservdt = Convert.ToDateTime(dr["RESERVDT"]);
@@ -406,20 +594,17 @@ namespace BodyWorkReservation
             {
                 _empno = dt.Rows[0]["EMPNO"].ToString() ?? "";
                 _empname = dt.Rows[0]["NAME"].ToString() ?? "";
-                _isAdministrator = 管理者判定(_empno);
+                _loginid = _empno;
+                _isAdministrator = Common.管理者判定(_loginid);
                 labelEmpName.Text = 挨拶() + $" {_empname} さん";
-                labelFelicaIDm.Text = dt.Rows[0]["FELICAID"].ToString() ?? "";
+                labelFelicaIDm2.Text = dt.Rows[0]["FELICAID"].ToString() ?? "";
+                buttonExportExcel.Visible = _isAdministrator;
                 自分の予約一覧に色を付ける();
 #pragma warning disable CS8622
                 labelEmpName.Click += ログアウト処理;
 #pragma warning restore CS8622
                 TimerStart();
             }
-        }
-        // 管理者判定【森下政宏モリシタマサヒロ、藤田彩華フジタアヤカ】
-        private static bool 管理者判定(string empno)
-        {
-            return (empno == "10794" || empno == "21292");
         }
         private static string 挨拶()
         {
@@ -458,10 +643,10 @@ namespace BodyWorkReservation
             {
                 if (Common.IsNfcPortDriverInstalled() == false)
                 {
-                    labelStatus.Text = "Smart Card Reader を接続してください．";
+                    toolStripStatusLabel1.Text = "Smart Card Reader を接続してください．";
                     MessageBox.Show("PaSoRi [RC-S380] が見つかりません．\n Smart Card Reader を接続してください．"
                         , Common.PROGRAM_TITLE
-                        , MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        , MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
@@ -470,7 +655,7 @@ namespace BodyWorkReservation
 
                 if (readers == null || readers.Length == 0)
                 {
-                    labelStatus.Text = "カードリーダーが見つかりません";
+                    toolStripStatusLabel1.Text = "カードリーダーが見つかりません";
                     return;
                 }
 
@@ -488,11 +673,11 @@ namespace BodyWorkReservation
 
                 if (!exists)
                 {
-                    labelStatus.Text = "PaSoRi が見つかりません";
+                    toolStripStatusLabel1.Text = "PaSoRi が見つかりません";
                     return;
                 }
 
-                labelStatus.Text = $"使用リーダー：{_readerName}";
+                toolStripStatusLabel1.Text = $"使用リーダー：{_readerName}";
 
                 _monitor = MonitorFactory.Instance.Create(SCardScope.System);
 
@@ -505,7 +690,8 @@ namespace BodyWorkReservation
             }
             catch (Exception ex)
             {
-                MessageBox.Show("ドライバが見つかりません．\nインストールしてから実行してください"
+                MessageBox.Show("カードリーダー初期化処理で異常が発生しました．\n"
+                    + ex.Message
                     , Common.PROGRAM_TITLE
                     , MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
@@ -517,7 +703,7 @@ namespace BodyWorkReservation
         {
             Invoke(new Action(() =>
             {
-                labelStatus.Text = "社員証を読み取ってください";
+                labelEmpName.Text = "社員証を読み取ってください";
             }));
         }
 
@@ -526,7 +712,7 @@ namespace BodyWorkReservation
         {
             Invoke(new Action(() =>
             {
-                labelStatus.Text = "カード検知";
+                toolStripStatusLabel1.Text = "カード検知";
 
                 // FeliCa Polling → IDm取得
                 var idm = GetFelicaIDm();
@@ -543,9 +729,11 @@ namespace BodyWorkReservation
                     {
                         _empno = dt.Rows[0]["EMPNO"].ToString() ?? "";
                         _empname = dt.Rows[0]["NAME"].ToString() ?? "";
-                        _isAdministrator = 管理者判定(_empno);
+                        _loginid = _empno;
+                        _isAdministrator = Common.管理者判定(_loginid);
                         labelEmpName.Text = 挨拶() + $" {_empname} さん";
-                        labelFelicaIDm.Text = dt.Rows[0]["FELICAID"].ToString() ?? "";
+                        labelFelicaIDm2.Text = dt.Rows[0]["FELICAID"].ToString() ?? "";
+                        buttonExportExcel.Visible = _isAdministrator;
                         自分の予約一覧に色を付ける();
 #pragma warning disable CS8622
                         labelEmpName.Click += ログアウト処理;
@@ -555,7 +743,7 @@ namespace BodyWorkReservation
                 }
                 else
                 {
-                    labelFelicaIDm.Text = "IDm取得失敗";
+                    labelFelicaIDm2.Text = "IDm取得失敗";
                 }
             }));
         }
@@ -569,7 +757,7 @@ namespace BodyWorkReservation
                  * 何もしない
                 labelStatus.Text = "カード抜去";
                 labelEmpName.Text = "";
-                labelFelicaIDm.Text = "";
+                labelFelicaIDm2.Text = "";
                 */
             }));
         }
@@ -580,13 +768,9 @@ namespace BodyWorkReservation
             Invoke(new Action(() =>
             {
                 _monitor = null;
-                labelStatus.Left = 20;
-                labelStatus.Width = this.Width - 60;
-                labelStatus.TextAlign = ContentAlignment.MiddleCenter;
-                labelStatus.ForeColor = Color.Yellow;
-                labelStatus.BackColor = Color.LightCoral;
-                labelStatus.Font = new Font(labelStatus.Font, FontStyle.Bold);
-                labelStatus.Text = $"モニター例外: {ex.Message}";
+                toolStripStatusLabel1.ForeColor = Color.Yellow;
+                toolStripStatusLabel1.BackColor = Color.LightCoral;
+                toolStripStatusLabel1.Text = $"FeliCaモニター異常: {ex.Message}";
             }));
         }
 
@@ -667,11 +851,10 @@ namespace BodyWorkReservation
         {
             // 自動ログアウト機能
 #pragma warning disable CS8622
-            idleTimer.Interval = 3 * 60 * 1000; // 3分を設定
+            idleTimer.Interval = 30 * 1000; // 30秒を設定
             idleTimer.Tick += IdleTimer_Tick;
             idleTimer.Start();                  // 開始
-            //this.KeyDown += ResetIdleTimer;     // ユーザー操作を監視
-            //this.MouseMove += ResetIdleTimer;   // ユーザー操作を監視
+            //Debug.Print(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " TimerStart ");
             Application.AddMessageFilter(_filter);
             _filter.UserActivity += ResetIdleTimer;
 #pragma warning restore CS8622
@@ -680,29 +863,32 @@ namespace BodyWorkReservation
         {
             idleTimer.Stop();
             idleTimer.Start();
+            //Debug.Print(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " Reset");
         }
         private void IdleTimer_Tick(object sender, EventArgs e)
         {
-            idleTimer.Stop();
             ログアウト処理(sender, e);
-#pragma warning disable CS8622
-            _filter.UserActivity -= ResetIdleTimer;
-#pragma warning restore CS8622
         }
 
         private void ログアウト処理(object sender, EventArgs e)
         {
+            idleTimer.Stop();
+            //Debug.Print(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " Stop");
+#pragma warning disable CS8622
+            _filter.UserActivity -= ResetIdleTimer;
+            labelEmpName.Click -= ログアウト処理;
+#pragma warning restore CS8622
             _empno = string.Empty;
             _empname = string.Empty;
+            _loginid = string.Empty;
+            Common.IsAdmin = false;
             _isAdministrator = false;
             textBoxEmpNo.Text = string.Empty;
             labelEmpName.Text = string.Empty;
-            labelFelicaIDm.Text = string.Empty;
-            if (_monitor != null) labelStatus.Text = "社員証を読み取ってください";
+            labelFelicaIDm2.Text = string.Empty;
+            if (_monitor != null) labelEmpName.Text = "社員証を読み取ってください";
+            buttonExportExcel.Visible = false;
             自分の予約一覧に色を付ける();
-#pragma warning disable CS8622
-            labelEmpName.Click -= ログアウト処理;
-#pragma warning restore CS8622
         }
 
         /*
