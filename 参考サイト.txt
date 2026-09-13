@@ -1,0 +1,5 @@
+C#でNFC(Felica/Mifare)の読み取り – 実践編 その1 – ATR, IDm/UID, カードタイプの取得
+
+https://office-fun.com/techmemo-csharp-nfcreading-practice01/
+
+

@@ -1,0 +1,22 @@
+using BodyWorkReservation;
+
+namespace BodyWorkReservation
+{
+    internal static class Program
+    {
+        /// <summary>
+        ///  The main entry point for the application.
+        /// </summary>
+        [STAThread]
+        static void Main()
+        {
+            ApplicationConfiguration.Initialize();
+
+            // コンフィグファイルチェック（事前準備）
+            Common.LoadConfig();
+
+            //Application.Run(new SampleBodyWorkReservationPCSC());
+            Application.Run(new FormBodyworkReservation());
+        }
+    }
+}
