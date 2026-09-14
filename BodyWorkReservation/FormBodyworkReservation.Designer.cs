@@ -197,6 +197,7 @@
             comboMonth.TabIndex = 13;
             comboMonth.Visible = false;
             comboMonth.SelectedIndexChanged += ComboMonth_SelectedIndexChanged;
+            comboMonth.DropDownClosed += comboMonth_DropDownClosed;
             // 
             // panel2
             // 

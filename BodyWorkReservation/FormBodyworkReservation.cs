@@ -251,6 +251,12 @@ namespace BodyWorkReservation
                 comboMonth.DroppedDown = true;   // ★これで即展開
             }
         }
+        private void comboMonth_DropDownClosed(object sender, EventArgs e)
+        {
+            DataGridViewSelectionClear(sender, e);
+            comboMonth.Visible = false;
+        }
+
         private void ComboMonth_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (comboMonth.SelectedItem == null) return;
@@ -259,8 +265,6 @@ namespace BodyWorkReservation
             int m = Convert.ToInt32(s.Split("年")[1].Split("月")[0]);
             _currentDate = new DateTime(y, m, 1);
             ReadMonthlyData();
-            DataGridViewSelectionClear(sender, e);
-            comboMonth.Visible = false;
         }
         private void Panel1_Click(object sender, EventArgs e)
         {
