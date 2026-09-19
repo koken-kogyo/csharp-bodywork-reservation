@@ -1,10 +1,6 @@
 ﻿using DecryptPassword;
-using Microsoft.Extensions.Configuration;
-using Microsoft.VisualBasic;
 using MySql.Data.MySqlClient;
-using Mysqlx.Expect;
 using System.Data;
-using System.Text;
 
 namespace BodyWorkReservation
 {
@@ -219,6 +215,35 @@ namespace BodyWorkReservation
             }
             return dt;
         }
+
+        /// <summary>
+        /// 従業員マスタ言語設定変更
+        /// </summary>
+        public static int 従業員マスタ言語設定変更()
+        {
+            int ret = -1;
+            string sql = string.Empty;
+            try
+            {
+                Connect();
+                sql = "update " + mpSchema + ".km0010 "
+                    + $"set CULTURECD='{Common.CultureCD}' "
+                    + $"where EMPNO='{Common.LoginID}'";
+                using (MySqlCommand myCmd = new(sql, mpCnn))
+                {
+                    ret = myCmd.ExecuteNonQuery();
+                }
+                Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("言語設定変更に失敗しました．\n" + sql + "\n" + ex.Message
+                    , Common.PROGRAM_TITLE
+                    , MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            return ret;
+        }
+
 
 
 

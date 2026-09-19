@@ -1,5 +1,4 @@
-﻿using Google.Protobuf.WellKnownTypes;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Win32;
 using System.Diagnostics;                   // Process.Start
 using System.Management;
@@ -23,7 +22,19 @@ namespace BodyWorkReservation
             "10794",
             "21292"
         ];
-        public static bool IsAdmin { get; set; }  // 管理者モード
+        // サポート言語
+        public static readonly string[] SUPPORTED_CULTURES = [
+            "Japanese (ja-JP)",
+            "English (en-US)",
+            "Português (pt-BR)"
+        ];
+
+        // ログインユーザーに関する情報を保持するプロパティ
+        public static string LoginID { get; set; } = string.Empty;  // ログインID
+        public static bool IsAdmin { get; set; }                    // 管理者モード
+        public static bool IsFullTimeEmployee { get; set; }         // 正社員
+        public static string CultureCD { get; set; } = "ja-JP";     // 言語設定
+        public static int CultureID { get; set; } = 0;              // サポート言語Index
 
         // 時間帯
         public static readonly string[] TIMESLOT_NAME = [
@@ -35,7 +46,7 @@ namespace BodyWorkReservation
             "⑥ 19:30 ～ 20:00"
         ];
 
-        // 施術内容
+        // （ 廃止 → Resourcesに移行 ）施術内容
         public static readonly string[] TREATMENT_NAME = [
             "腰痛",
             "肩凝り",
@@ -174,11 +185,50 @@ namespace BodyWorkReservation
          * メソッド関連
          */
 
-        // 管理者判定
+        // 従業員コード判定
         public static bool 管理者判定(string loginid)
         {
+            LoginID = loginid;
             IsAdmin = ADMIN_CODES.Contains(loginid);
+            // 正社員判定
+            if (loginid.StartsWith('1') || loginid.StartsWith('2') ||
+                loginid.StartsWith("01") || loginid.StartsWith("02"))
+            {
+                IsFullTimeEmployee = true;
+            }
+            else
+            {
+                IsFullTimeEmployee = false;
+            }
             return IsAdmin;
+        }
+
+        // 言語設定
+        public static void 言語設定(string culturecd)
+        {
+            // 初期値を設定
+            CultureCD = (culturecd == string.Empty)
+                ? (IsFullTimeEmployee == true) 
+                ? "ja-JP" 
+                : "en-US"
+                : culturecd;
+            CultureID = 0;
+            for (int i = 0; i < SUPPORTED_CULTURES.Length; i++)
+            {
+                // コンボボックス選択からの設定
+                if (SUPPORTED_CULTURES[i].ToString() == CultureCD)
+                {
+                    CultureCD = CultureCD.Split("(")[1].Split(")")[0];
+                    CultureID = i;
+                    break;
+                }
+                // 従業員マスタ言語コードからの設定
+                else if (SUPPORTED_CULTURES[i].ToString().Contains(CultureCD))
+                {
+                    CultureID = i;
+                    break;
+                }
+            }
         }
 
         // デバイス一覧に RC-S380 または PaSoRi が存在するかを確認する

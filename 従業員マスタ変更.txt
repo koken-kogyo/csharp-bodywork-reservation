@@ -1,0 +1,3 @@
+alter table km0010 drop FELICAID;
+alter table km0010 add FELICAID varchar(23) comment 'FeliCaID:FeliCaのIDm情報(ハイフン付き23桁)';
+alter table km0010 add CULTURECD varchar(10) comment '言語コード:例）ja-JP,en-US,pt-BR';

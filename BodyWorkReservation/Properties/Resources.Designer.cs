@@ -61,12 +61,228 @@ namespace BodyWorkReservation.Properties {
         }
         
         /// <summary>
+        ///   施術30分 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Announce1 {
+            get {
+                return ResourceManager.GetString("Announce1", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   2,900円のところ 自己負担額1,500円でご利用いただけます。 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Announce2FullTimeEmployee {
+            get {
+                return ResourceManager.GetString("Announce2FullTimeEmployee", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   利用料金2,900円 を当日お持ちください。 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Announce2OtherEmployee {
+            get {
+                return ResourceManager.GetString("Announce2OtherEmployee", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   会社補助額1,400円・給与天引き に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Announce3FullTimeEmployee {
+            get {
+                return ResourceManager.GetString("Announce3FullTimeEmployee", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   a に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Announce3OtherEmployee {
+            get {
+                return ResourceManager.GetString("Announce3OtherEmployee", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   予約取消 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string BtnCancelReservation {
+            get {
+                return ResourceManager.GetString("BtnCancelReservation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   予約変更 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string BtnChangeReservation {
+            get {
+                return ResourceManager.GetString("BtnChangeReservation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   閉じる に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string BtnClose {
+            get {
+                return ResourceManager.GetString("BtnClose", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   予約 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string BtnReservation {
+            get {
+                return ResourceManager.GetString("BtnReservation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   言語設定を保存 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string BtnSaveCalture {
+            get {
+                return ResourceManager.GetString("BtnSaveCalture", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   了解しました。 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string BtnUnderstand {
+            get {
+                return ResourceManager.GetString("BtnUnderstand", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   その他お悩み事 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string LabelOtherSymptoms {
+            get {
+                return ResourceManager.GetString("LabelOtherSymptoms", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   施術内容： に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string LabelTreatment {
+            get {
+                return ResourceManager.GetString("LabelTreatment", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
         /// </summary>
-        internal static System.Drawing.Bitmap 掛川整体からだや {
+        internal static System.Drawing.Bitmap Logo {
             get {
-                object obj = ResourceManager.GetObject("掛川整体からだや", resourceCulture);
+                object obj = ResourceManager.GetObject("Logo", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   保存しました． に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string MsgCultureSaved {
+            get {
+                return ResourceManager.GetString("MsgCultureSaved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   施術内容を選択してください． に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string MsgTreatmentRequired {
+            get {
+                return ResourceManager.GetString("MsgTreatmentRequired", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   腰痛 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Pain_1LowBack {
+            get {
+                return ResourceManager.GetString("Pain_1LowBack", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   肩凝り に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Pain_2StiffShoulders {
+            get {
+                return ResourceManager.GetString("Pain_2StiffShoulders", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   頭痛 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Pain_3Headache {
+            get {
+                return ResourceManager.GetString("Pain_3Headache", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   股関節痛 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Pain_4Hip {
+            get {
+                return ResourceManager.GetString("Pain_4Hip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   膝痛 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Pain_5Knee {
+            get {
+                return ResourceManager.GetString("Pain_5Knee", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   自律神経の不調 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Pain_6Autonomic {
+            get {
+                return ResourceManager.GetString("Pain_6Autonomic", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   その他 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Pain_9Other {
+            get {
+                return ResourceManager.GetString("Pain_9Other", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   お知らせ に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string TitleAnnouncement {
+            get {
+                return ResourceManager.GetString("TitleAnnouncement", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   予約画面 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string TitlePopup {
+            get {
+                return ResourceManager.GetString("TitlePopup", resourceCulture);
             }
         }
     }

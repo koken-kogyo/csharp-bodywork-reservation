@@ -118,79 +118,79 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="BtnCancelReservation" xml:space="preserve">
-    <value>予約取消</value>
+    <value>Cancelar Reserva</value>
   </data>
   <data name="BtnChangeReservation" xml:space="preserve">
-    <value>予約変更</value>
+    <value>Alterar Reserva</value>
   </data>
   <data name="BtnClose" xml:space="preserve">
-    <value>閉じる</value>
+    <value>Fechar</value>
   </data>
   <data name="LabelTreatment" xml:space="preserve">
-    <value>施術内容：</value>
+    <value>Tratamento:</value>
   </data>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
   <data name="Logo" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\掛川整体からだや.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="LabelOtherSymptoms" xml:space="preserve">
-    <value>その他お悩み事</value>
+    <value>Outras Queixas:</value>
   </data>
   <data name="Pain_6Autonomic" xml:space="preserve">
-    <value>自律神経の不調</value>
+    <value>Distúrbio do Sistema Nervoso Autônomo</value>
   </data>
   <data name="Pain_3Headache" xml:space="preserve">
-    <value>頭痛</value>
+    <value>Dor de Cabeça</value>
   </data>
   <data name="Pain_4Hip" xml:space="preserve">
-    <value>股関節痛</value>
+    <value>Dor na Articulação do Quadril</value>
   </data>
   <data name="Pain_5Knee" xml:space="preserve">
-    <value>膝痛</value>
+    <value>Dor no Joelho</value>
   </data>
   <data name="Pain_1LowBack" xml:space="preserve">
-    <value>腰痛</value>
+    <value>Dor Lombar</value>
   </data>
   <data name="Pain_9Other" xml:space="preserve">
-    <value>その他</value>
+    <value>Outros</value>
   </data>
   <data name="Pain_2StiffShoulders" xml:space="preserve">
-    <value>肩凝り</value>
+    <value>Rigidez nos Ombros</value>
   </data>
   <data name="BtnReservation" xml:space="preserve">
-    <value>予約</value>
+    <value>Reserva</value>
   </data>
   <data name="TitlePopup" xml:space="preserve">
-    <value>予約画面</value>
+    <value>Tela de Reserva</value>
   </data>
   <data name="TitleAnnouncement" xml:space="preserve">
-    <value>お知らせ</value>
+    <value>Avisos</value>
   </data>
   <data name="Announce1" xml:space="preserve">
-    <value>施術30分</value>
+    <value>30 minutos de tratamento</value>
   </data>
   <data name="BtnSaveCalture" xml:space="preserve">
-    <value>言語設定を保存</value>
+    <value>Salvar Configurações de Idioma</value>
   </data>
   <data name="MsgCultureSaved" xml:space="preserve">
-    <value>保存しました．</value>
+    <value>Salvo com sucesso</value>
   </data>
   <data name="Announce2FullTimeEmployee" xml:space="preserve">
-    <value>2,900円のところ 自己負担額1,500円でご利用いただけます。</value>
+    <value>O preço normal é de 2.900 ienes, mas você pode utilizá-lo com um pagamento adicional de 1.500 ienes.</value>
   </data>
   <data name="Announce2OtherEmployee" xml:space="preserve">
-    <value>利用料金2,900円 を当日お持ちください。</value>
+    <value>Por favor, traga a taxa de utilização de 2.900 ienes no dia da sua visita.</value>
   </data>
   <data name="Announce3FullTimeEmployee" xml:space="preserve">
-    <value>会社補助額1,400円・給与天引き</value>
+    <value>Subsídio da empresa: 1.400 ienes (descontados do salário)</value>
   </data>
   <data name="Announce3OtherEmployee" xml:space="preserve">
     <value>a</value>
   </data>
   <data name="BtnUnderstand" xml:space="preserve">
-    <value>了解しました。</value>
+    <value>Eu entendi.</value>
   </data>
   <data name="MsgTreatmentRequired" xml:space="preserve">
-    <value>施術内容を選択してください．</value>
+    <value>Por favor, selecione o tratamento que deseja receber.</value>
   </data>
 </root>

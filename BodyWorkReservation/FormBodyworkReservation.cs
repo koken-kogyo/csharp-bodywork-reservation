@@ -1,10 +1,6 @@
-﻿using Org.BouncyCastle.Asn1.X509;
-using PCSC;
+﻿using PCSC;
 using PCSC.Exceptions;
 using PCSC.Monitoring;
-using System.Diagnostics;
-using System.Threading;
-using System.Windows.Forms;
 using Timer = System.Windows.Forms.Timer;
 
 namespace BodyWorkReservation
@@ -13,10 +9,10 @@ namespace BodyWorkReservation
     {
         private DateTime _currentDate = DateTime.Today;
         private readonly List<DateTime> _thursdays = [];
-        private string _loginid = string.Empty;
         private bool _isAdministrator = false;
         private string _empno = string.Empty;
         private string _empname = string.Empty;
+        private string _culturecd = string.Empty;
 
         private ISCardMonitor? _monitor = null;
         private string _readerName = "Sony FeliCa Port/PaSoRi 3.0 0";
@@ -35,6 +31,9 @@ namespace BodyWorkReservation
 
             // 最大化表示
             this.WindowState = FormWindowState.Maximized;
+
+            // Logo の読み込み
+            pictureBox1.Image = Properties.Resources.Logo;
         }
 
         // フォームロードで各種初期設定を行う
@@ -54,6 +53,14 @@ namespace BodyWorkReservation
                 ? new DateTime(d.Year, d.Month, 1).AddMonths(1)
                 : new DateTime(d.Year, d.Month, 1);
             ReadMonthlyData();
+            
+            // 最終木曜日の翌日から２０日迄の場合は翌月の予約を表示する
+            var lastThursday = _thursdays.LastOrDefault();
+            if (lastThursday.Day < d.Day && d.Day <= 20)
+            {
+                _currentDate = _currentDate.AddMonths(1);
+                ReadMonthlyData();
+            }
 
             // カードリーダー初期化
             InitializePcscMonitor();
@@ -251,7 +258,7 @@ namespace BodyWorkReservation
                 comboMonth.DroppedDown = true;   // ★これで即展開
             }
         }
-        private void comboMonth_DropDownClosed(object sender, EventArgs e)
+        private void ComboMonth_DropDownClosed(object sender, EventArgs e)
         {
             DataGridViewSelectionClear(sender, e);
             comboMonth.Visible = false;
@@ -371,6 +378,7 @@ namespace BodyWorkReservation
                     var msg = (_monitor != null) ? "社員証を読み取るか、" : "";
                     msg += "従業員番号を入力してください．";
                     MessageBox.Show(msg, "予約登録", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    textBoxEmpNo.Focus();
                 }
                 DataGridViewSelectionClear(sender, e);
                 return;
@@ -397,17 +405,27 @@ namespace BodyWorkReservation
                     EmpNo = _empno,
                     EmpName = _empname,
                 };
-                Form frm = new FormBodyworkPopup(true, order, this)
+                // お知らせの表示
+                Form frmAnn = new FormAnnouncement()
                 {
                     StartPosition = FormStartPosition.CenterParent
-                    // セルの横にポップアップさせる処理は廃止↓
-                    // StartPosition = FormStartPosition.Manual,
-                    // Location = PopupPoint(sender, e) 
                 };
-                var result = frm.ShowDialog();
-                if (result == DialogResult.OK)
+                var resultAnn = frmAnn.ShowDialog();
+                if (resultAnn != DialogResult.Cancel)
                 {
-                    cell.Value = order;
+                    // 予約画面表示
+                    Form frm = new FormBodyworkPopup(true, order)
+                    {
+                        StartPosition = FormStartPosition.CenterParent
+                        // セルの横にポップアップさせる処理は廃止↓
+                        // StartPosition = FormStartPosition.Manual,
+                        // Location = PopupPoint(sender, e) 
+                    };
+                    var resultPop = frm.ShowDialog();
+                    if (resultPop == DialogResult.OK)
+                    {
+                        cell.Value = order;
+                    }
                 }
             }
             else
@@ -417,15 +435,15 @@ namespace BodyWorkReservation
                     DataGridViewSelectionClear(sender, e);
                     return;
                 }
-                Form frm = new FormBodyworkPopup(false, order, this)
+                Form frm = new FormBodyworkPopup(false, order)
                 {
                     StartPosition = FormStartPosition.CenterParent,
                     // セルの横にポップアップさせる処理は廃止↓
                     // StartPosition = FormStartPosition.Manual,
                     // Location = PopupPoint(sender, e)
                 };
-                var result = frm.ShowDialog();
-                if (result == DialogResult.No) // 予約取消
+                var resultPop = frm.ShowDialog();
+                if (resultPop == DialogResult.No) // 予約取消
                 {
                     cell.Value = null;
                 }
@@ -598,8 +616,9 @@ namespace BodyWorkReservation
             {
                 _empno = dt.Rows[0]["EMPNO"].ToString() ?? "";
                 _empname = dt.Rows[0]["NAME"].ToString() ?? "";
-                _loginid = _empno;
-                _isAdministrator = Common.管理者判定(_loginid);
+                _culturecd = dt.Rows[0]["CULTURECD"].ToString() ?? "ja-JP";
+                _isAdministrator = Common.管理者判定(_empno);
+                Common.言語設定(_culturecd);
                 labelEmpName.Text = 挨拶() + $" {_empname} さん";
                 labelFelicaIDm2.Text = dt.Rows[0]["FELICAID"].ToString() ?? "";
                 buttonExportExcel.Visible = _isAdministrator;
@@ -648,9 +667,11 @@ namespace BodyWorkReservation
                 if (Common.IsNfcPortDriverInstalled() == false)
                 {
                     toolStripStatusLabel1.Text = "Smart Card Reader を接続してください．";
+                    /*
                     MessageBox.Show("PaSoRi [RC-S380] が見つかりません．\n Smart Card Reader を接続してください．"
                         , Common.PROGRAM_TITLE
                         , MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    */
                     return;
                 }
 
@@ -733,8 +754,9 @@ namespace BodyWorkReservation
                     {
                         _empno = dt.Rows[0]["EMPNO"].ToString() ?? "";
                         _empname = dt.Rows[0]["NAME"].ToString() ?? "";
-                        _loginid = _empno;
-                        _isAdministrator = Common.管理者判定(_loginid);
+                        _culturecd = dt.Rows[0]["CULTURECD"].ToString() ?? "ja-JP";
+                        _isAdministrator = Common.管理者判定(_empno);
+                        Common.言語設定(_culturecd);
                         labelEmpName.Text = 挨拶() + $" {_empname} さん";
                         labelFelicaIDm2.Text = dt.Rows[0]["FELICAID"].ToString() ?? "";
                         buttonExportExcel.Visible = _isAdministrator;
@@ -884,7 +906,6 @@ namespace BodyWorkReservation
 #pragma warning restore CS8622
             _empno = string.Empty;
             _empname = string.Empty;
-            _loginid = string.Empty;
             Common.IsAdmin = false;
             _isAdministrator = false;
             textBoxEmpNo.Text = string.Empty;

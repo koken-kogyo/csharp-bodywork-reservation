@@ -1,4 +1,5 @@
 using BodyWorkReservation;
+using System.Globalization;
 
 namespace BodyWorkReservation
 {
@@ -17,6 +18,7 @@ namespace BodyWorkReservation
 
             //Application.Run(new SampleBodyWorkReservationPCSC());
             Application.Run(new FormBodyworkReservation());
+
         }
     }
 }

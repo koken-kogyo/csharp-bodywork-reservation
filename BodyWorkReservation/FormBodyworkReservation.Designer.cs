@@ -1,4 +1,6 @@
-﻿namespace BodyWorkReservation
+﻿using System.Globalization;
+
+namespace BodyWorkReservation
 {
     partial class FormBodyworkReservation
     {
@@ -129,7 +131,6 @@
             // 
             // pictureBox1
             // 
-            pictureBox1.Image = Properties.Resources.掛川整体からだや;
             pictureBox1.Location = new Point(3, 3);
             pictureBox1.Name = "pictureBox1";
             pictureBox1.Size = new Size(312, 114);
@@ -178,12 +179,11 @@
             // labelEmpName
             // 
             labelEmpName.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            labelEmpName.AutoSize = true;
             labelEmpName.Font = new Font("HGPｺﾞｼｯｸE", 27.75F, FontStyle.Regular, GraphicsUnit.Point, 128);
-            labelEmpName.Location = new Point(475, 30);
+            labelEmpName.Location = new Point(34, 25);
             labelEmpName.Margin = new Padding(5, 0, 5, 0);
             labelEmpName.Name = "labelEmpName";
-            labelEmpName.Size = new Size(445, 37);
+            labelEmpName.Size = new Size(886, 37);
             labelEmpName.TabIndex = 4;
             labelEmpName.Text = "こんにちは 「コーケン」 さん";
             labelEmpName.TextAlign = ContentAlignment.MiddleRight;
@@ -197,7 +197,7 @@
             comboMonth.TabIndex = 13;
             comboMonth.Visible = false;
             comboMonth.SelectedIndexChanged += ComboMonth_SelectedIndexChanged;
-            comboMonth.DropDownClosed += comboMonth_DropDownClosed;
+            comboMonth.DropDownClosed += ComboMonth_DropDownClosed;
             // 
             // panel2
             // 
