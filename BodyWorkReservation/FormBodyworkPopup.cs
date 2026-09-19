@@ -30,7 +30,7 @@ namespace BodyWorkReservation
             // テキスト関連の初期設定
             labelEmployee.Text = order.EmpName;
             labelReservDt.Text = order.ReservDt.ToString("MM/dd");
-            labelTimeSlot.Text = Common.TIMESLOT_NAME[order.TimeSlot];
+            labelTimeSlot.Text = $"{order.StDt:H:m} ～ {order.EdDt:HH:mm}";
             textBoxNote.Text = order.Note;
 
             // 過去オーダーは参照に設定
@@ -140,7 +140,7 @@ namespace BodyWorkReservation
         // 「言語設定の保存」ボタン
         private void ButtonSaveCulture_Click(object sender, EventArgs e)
         {
-            Common.言語設定(comboBoxCulture.SelectedText);
+            Common.言語設定(comboBoxCulture.Text);
             int ret = DBManager_MySQL.従業員マスタ言語設定変更();
             if (ret == -1) return;
             buttonSaveCulture.Visible = false;

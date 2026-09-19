@@ -71,12 +71,15 @@ namespace BodyWorkReservation
             // 月度表示
             labelMonthly.Text = _currentDate.ToString("M月度開催");
 
+            //月度に応じてタイムスロットを切り替える
+            string[] slots = Common.GetTimeSlotByDate(_currentDate);
+
             // データグリッドビューの列を生成
             GenerateThursdayColumns();
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < slots.Length; i++)
             {
                 dataGridView1.Rows.Add();
-                dataGridView1.Rows[i].HeaderCell.Value = Common.TIMESLOT_NAME[i];
+                dataGridView1.Rows[i].HeaderCell.Value = slots[i];
             }
             dataGridView1.EnableHeadersVisualStyles = false;
             dataGridView1.RowHeadersDefaultCellStyle.BackColor = Color.LightGray;
@@ -91,6 +94,7 @@ namespace BodyWorkReservation
             AdjustRowHeight();
             AdjustFontSize();
         }
+
         // 「前月」ボタン
         private void ButtonPrevMonth_Click(object sender, EventArgs e)
         {
@@ -101,6 +105,7 @@ namespace BodyWorkReservation
             ReadMonthlyData();
             DataGridViewSelectionClear(sender, e);
         }
+
         // 「翌月」ボタン
         private void ButtonNextMonth_Click(object sender, EventArgs e)
         {
@@ -111,12 +116,15 @@ namespace BodyWorkReservation
             ReadMonthlyData();
             DataGridViewSelectionClear(sender, e);
         }
+
         // データグリッドの選択状態をクリアするにはActivatedかShownしかない！
         private void DataGridViewSelectionClear(object sender, EventArgs e)
         {
             dataGridView1.ClearSelection();
             dataGridView1.CurrentCell = null;
         }
+
+        // （見た目の初期設定）フォームリサイズイベント
         private void FormBodyWorkReservation_Resize(object sender, EventArgs e)
         {
             AdjustColumnWidth();
@@ -143,7 +151,8 @@ namespace BodyWorkReservation
         private void AdjustRowHeight()
         {
             if (this.WindowState == FormWindowState.Minimized) return;
-            int rows = 7;
+            if (dataGridView1.RowCount == 0) return;
+            int rows = dataGridView1.RowCount + 1;
             int availableHeight = panel2.Height - panel2.Padding.Top - panel2.Padding.Bottom;
             if (availableHeight <= 0) return;
             int rowHeight = availableHeight / rows;
@@ -208,6 +217,7 @@ namespace BodyWorkReservation
                 this.Close();
             }
         }
+
         // （隠れコマンド）④ダブルクリックでプログラム終了
         private void DataGridView1_RowHeaderMouseDoubleClick(object sender, DataGridViewCellMouseEventArgs e)
         {
@@ -223,6 +233,7 @@ namespace BodyWorkReservation
         /*
          * 年月選択コンボボックス関連の処理ここから
          */
+
         private void SetupMonthCombo()
         {
             comboMonth.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -263,6 +274,10 @@ namespace BodyWorkReservation
             DataGridViewSelectionClear(sender, e);
             comboMonth.Visible = false;
         }
+        private void Panel1_Click(object sender, EventArgs e)
+        {
+            comboMonth.Visible = false;
+        }
 
         private void ComboMonth_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -272,10 +287,7 @@ namespace BodyWorkReservation
             int m = Convert.ToInt32(s.Split("年")[1].Split("月")[0]);
             _currentDate = new DateTime(y, m, 1);
             ReadMonthlyData();
-        }
-        private void Panel1_Click(object sender, EventArgs e)
-        {
-            comboMonth.Visible = false;
+            DataGridViewSelectionClear(sender, e);
         }
 
         /*
@@ -288,6 +300,7 @@ namespace BodyWorkReservation
         /*
          * Excel出力関連の処理ここから
          */
+
         private void ButtonExportExcel_Click(object sender, EventArgs e)
         {
             if (!Common.IsExcelInstalled())
@@ -314,6 +327,7 @@ namespace BodyWorkReservation
             // 実績一覧Excelを出力し別プロセスで開く
             Common.ExportExcel(dataGridView1, saveFullPath);
         }
+
         /*
          * Excel出力関連の処理ここまで
          */
@@ -402,6 +416,8 @@ namespace BodyWorkReservation
                 {
                     ReservDt = _thursdays[e.ColumnIndex],
                     TimeSlot = e.RowIndex,
+                    StDt = 開始時刻取得(e.RowIndex, e.ColumnIndex),
+                    EdDt = 終了時刻取得(e.RowIndex, e.ColumnIndex),
                     EmpNo = _empno,
                     EmpName = _empname,
                 };
@@ -425,6 +441,16 @@ namespace BodyWorkReservation
                     if (resultPop == DialogResult.OK)
                     {
                         cell.Value = order;
+                        // 新規予約メール送信
+                        var msg = $@"
+新規予約が登録されました．
+
+日時：{order.ReservDt:yyyy/MM/dd} {order.StDt:HH:mm} ～ {order.EdDt:HH:mm}
+社員番号：{order.EmpNo}
+氏名：{order.EmpName}
+施術内容：{order.Treatment}
+備考：{order.Note}";
+                        SendMail(msg);
                     }
                 }
             }
@@ -446,6 +472,30 @@ namespace BodyWorkReservation
                 if (resultPop == DialogResult.No) // 予約取消
                 {
                     cell.Value = null;
+                    // 予約取消メール送信
+                    var msg = $@"
+予約が取消されました．
+
+日時：{order.ReservDt:yyyy/MM/dd} {order.StDt:HH:mm} ～ {order.EdDt:HH:mm}
+社員番号：{order.EmpNo}
+氏名：{order.EmpName}
+施術内容：{order.Treatment}
+備考：{order.Note}";
+                    SendMail(msg);
+                }
+                else if (resultPop == DialogResult.OK) // 予約変更
+                {
+                    cell.Value = order;
+                    // 予約変更メール送信
+                    var msg = $@"
+予約内容が変更されました．
+
+日時：{order.ReservDt:yyyy/MM/dd} {order.StDt:HH:mm} ～ {order.EdDt:HH:mm}
+社員番号：{order.EmpNo}
+氏名：{order.EmpName}
+施術内容：{order.Treatment}
+備考：{order.Note}";
+                    SendMail(msg);
                 }
             }
             自分の予約一覧に色を付ける();
@@ -455,40 +505,8 @@ namespace BodyWorkReservation
             //Debug.Print(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " StartCellClick");
 #pragma warning restore CS8622
         }
-        // ポップアップウィンドウを表示させる位置を計算
-        private Point PopupPoint(object sender, DataGridViewCellEventArgs e)
-        {
-            // セルの画面座標を取得（0:列ヘッダー行の下側に固定表示させる）
-            Rectangle cellRect = dataGridView1.GetCellDisplayRectangle(e.ColumnIndex, 0, false);
-            Point cellScreenPos = dataGridView1.PointToScreen(cellRect.Location);
 
-            int cellRight = cellScreenPos.X + cellRect.Width;
-            int cellLeft = cellScreenPos.X;
-            int subWidth = 483; // サブフォームの幅
-
-            // スクリーンがnullの場合、画面の右端
-            if (Screen.PrimaryScreen == null)
-            {
-                return new Point(cellRight, cellLeft);
-            }
-            int screenRight = Screen.PrimaryScreen.WorkingArea.Right;
-
-            // 配置位置（縦はセルのYそのまま）
-            int x;
-            // 右側に置くと画面からはみ出す？
-            if (cellRight + subWidth > screenRight)
-            {
-                x = cellLeft - subWidth;// → 左側に置く
-            }
-            else
-            {
-                x = cellRight;          // → 通常は右側に置く
-            }
-            int y = cellScreenPos.Y;    // 縦位置は固定
-
-            return new Point(x, y);
-        }
-
+        // データグリッドの状態を再描画
         private void 自分の予約一覧に色を付ける()
         {
             // データグリッドビューのセルを初期化
@@ -506,7 +524,12 @@ namespace BodyWorkReservation
                             : Color.LightSlateGray;
 
                         // ②に予約が入っている時は①の予約を出来ないようグレーアウトする
-                        if (rowIdx == 1)
+                        // 　タイムスロット時間帯を変更した場合はここの判定式も変更しないといけないので注意
+                        // 　ソースを「タイムスロット時間帯」で検索して修正してください
+                        if (rowIdx == 1 &&
+                            _currentDate >= new DateTime(2026, 9, 1) && 
+                            _currentDate < new DateTime(2027, 11, 1)
+                            )
                         {
                             dataGridView1[colIdx, 0].Style.BackColor = Color.LightSlateGray;
                             dataGridView1[colIdx, 0].Value = "－";
@@ -520,7 +543,13 @@ namespace BodyWorkReservation
                     else
                     {
                         // ②に予約が入っていなくても①に予約が入っている時はグレーアウトする
-                        if (rowIdx == 1 && dataGridView1[colIdx, 0].Value is Common.Order)
+                        // 　タイムスロット時間帯を変更した場合はここの判定式も変更しないといけないので注意
+                        // 　ソースを「タイムスロット時間帯」で検索して修正してください
+                        if (rowIdx == 1 && 
+                            dataGridView1[colIdx, 0].Value is Common.Order &&
+                            _currentDate >= new DateTime(2026, 9, 1) &&
+                            _currentDate < new DateTime(2027, 11, 1)
+                            )
                         {
                             dataGridView1[colIdx, 1].Style.BackColor = Color.LightSlateGray;
                             dataGridView1[colIdx, 1].Value = "－";
@@ -541,8 +570,74 @@ namespace BodyWorkReservation
                 }
             }
         }
+
+        private DateTime 開始時刻取得(int rowIndex, int colIndex)
+        {
+            DateTime d = _thursdays[colIndex];
+            string slotname = dataGridView1.Rows[rowIndex].HeaderCell.Value.ToString() ?? "";
+            string timeStr = slotname.Split(" ")[1].Trim();
+            return DateTime.Parse($"{d:yyyy-MM-dd} {timeStr}");
+        }
+
+        private DateTime 終了時刻取得(int rowIndex, int colIndex)
+        {
+            DateTime d = _thursdays[colIndex];
+            string slotname = dataGridView1.Rows[rowIndex].HeaderCell.Value.ToString() ?? "";
+            string timeStr = slotname.Split(" ")[3].Trim();
+            return DateTime.Parse($"{d:yyyy-MM-dd} {timeStr}");
+        }
+
         /*
          * データグリッド関連の処理ここまで
+         */
+
+
+
+        /*
+         * Microsoft Graph API v6 メール送信(SendMail)関連ここから
+         */
+
+        private async void SendMail(string message)
+        {
+            // メール送信が必要な端末にのみメール設定ファイルが存在する
+            if (Common.IsEmailConfigLoaded == false) return;
+
+            // スクリーンショットをキャプチャ
+            var pngBytes = CaptureMyAppScreen();
+
+            // 定型文を付与
+            message += "\n\n" + @"
+-------------------------------------------------------------
+※このメールはプログラムが自動送信したものです。
+　返信は出来ません．
+-------------------------------------------------------------
+";
+            // メール送信
+            await Common.SendScreenshotMailAsync(pngBytes, message);
+
+            toolStripStatusLabel1.Text = "メール送信しました．";
+        }
+
+        // スクリーンショットをキャプチャ
+        private byte[] CaptureMyAppScreen()
+        {
+            // このフォームが表示されているモニターを取得
+            var screen = Screen.FromControl(this);
+            var bounds = screen.Bounds;
+
+            using var bmp = new Bitmap(bounds.Width, bounds.Height);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.CopyFromScreen(bounds.X, bounds.Y, 0, 0, bounds.Size);
+            }
+
+            using var ms = new MemoryStream();
+            bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            return ms.ToArray();
+        }
+
+        /*
+         * Microsoft Graph API v6 メール送信(SendMail)関連ここまで
          */
 
 
@@ -576,14 +671,18 @@ namespace BodyWorkReservation
             {
                 DateTime reservdt = Convert.ToDateTime(dr["RESERVDT"]);
                 int timeslot = Convert.ToInt32(dr["TIMESLOT"]);
+                DateTime stdt = Convert.ToDateTime(dr["STDT"]);
+                DateTime eddt = Convert.ToDateTime(dr["EDDT"]);
                 string empno = dr["EMPNO"].ToString() ?? "";
-                string empname = dr["NAME"].ToString() ?? "";
+                string empname = dr["EMPNM"].ToString() ?? "";
                 string treatment = dr["TREATMENT"].ToString() ?? "";
                 string note = dr["NOTE"].ToString() ?? "";
                 var order = new Common.Order
                 {
                     ReservDt = reservdt,
                     TimeSlot = timeslot,
+                    StDt = stdt,
+                    EdDt = eddt,
                     EmpNo = empno,
                     EmpName = empname,
                     Treatment = treatment,

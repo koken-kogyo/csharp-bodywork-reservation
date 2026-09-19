@@ -1,3 +1,11 @@
+--- MySQL編 ---
 alter table km0010 drop FELICAID;
 alter table km0010 add FELICAID varchar(23) comment 'FeliCaID:FeliCaのIDm情報(ハイフン付き23桁)';
 alter table km0010 add CULTURECD varchar(10) comment '言語コード:例）ja-JP,en-US,pt-BR';
+
+
+--- Oracle編 ---
+ALTER TABLE km0010 ADD FELICAID VARCHAR2(23);
+COMMENT ON COLUMN km0010.FELICAID IS 'FeliCaID:FeliCaのIDm情報(ハイフン付き23桁)';
+ALTER TABLE km0010 ADD CULTURECD VARCHAR2(10);
+COMMENT ON COLUMN km0010.CULTURECD IS '言語コード:例）ja-JP,en-US,pt-BR';

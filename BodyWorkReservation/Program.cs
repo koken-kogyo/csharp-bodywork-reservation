@@ -13,8 +13,9 @@ namespace BodyWorkReservation
         {
             ApplicationConfiguration.Initialize();
 
-            // ƒRƒ“ƒtƒBƒOƒtƒ@ƒCƒ‹ƒ`ƒFƒbƒNi–‘O€”õj
-            Common.LoadConfig();
+            // ã‚³ãƒ³ãƒ•ã‚£ã‚°ãƒ•ã‚¡ã‚¤ãƒ«ãƒã‚§ãƒƒã‚¯ï¼ˆäº‹å‰æº–å‚™ï¼‰
+            Common.LoadAppConfig();
+            Common.LoadEmailConfig();
 
             //Application.Run(new SampleBodyWorkReservationPCSC());
             Application.Run(new FormBodyworkReservation());

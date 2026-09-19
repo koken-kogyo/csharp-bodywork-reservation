@@ -1,9 +1,16 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using DecryptPassword;
+using Microsoft.Extensions.Configuration;   // JSON
 using Microsoft.Win32;
 using System.Diagnostics;                   // Process.Start
 using System.Management;
 using System.Runtime.InteropServices;       // Marshal.ReleaseComObject
 using Excel = Microsoft.Office.Interop.Excel;
+// Microsoft Graph API
+using Microsoft.Graph;
+using Microsoft.Graph.Models;
+using Microsoft.Graph.Users.Item.SendMail;
+using Microsoft.Identity.Client;
+using System.Net.Http.Headers;
 
 namespace BodyWorkReservation
 {
@@ -36,14 +43,36 @@ namespace BodyWorkReservation
         public static string CultureCD { get; set; } = "ja-JP";     // 言語設定
         public static int CultureID { get; set; } = 0;              // サポート言語Index
 
-        // 時間帯
+        // タイムスロット時間帯
         public static readonly string[] TIMESLOT_NAME = [
+            "① 16:20 ～ 16:50",
+            "② 17:20 ～ 17:50",
+            "③ 18:00 ～ 18:30",
+            "④ 18:40 ～ 19:10",
+            "⑤ 19:20 ～ 19:50"
+        ];
+        public static readonly string[] TIMESLOT202609 = [
             "① 16:30 ～ 17:00",
             "② 16:50 ～ 17:20",
             "③ 17:30 ～ 18:00",
             "④ 18:10 ～ 18:40",
             "⑤ 18:50 ～ 19:20",
             "⑥ 19:30 ～ 20:00"
+        ];
+        public static readonly string[] TIMESLOT202711 = [
+            "① 16:20 ～ 16:50",
+            "② 17:20 ～ 17:50",
+            "③ 18:00 ～ 18:30",
+            "④ 18:40 ～ 19:10",
+            "⑤ 19:20 ～ 19:50"
+        ];
+        public static readonly string[] TIMESLOT209912 = [
+            "① 17:00 ～ 17:30",
+            "② 17:20 ～ 17:50",
+            "③ 18:00 ～ 18:30",
+            "④ 18:40 ～ 19:10",
+            "⑤ 19:20 ～ 19:50",
+            "⑥ 20:00 ～ 20:30"
         ];
 
         // （ 廃止 → Resourcesに移行 ）施術内容
@@ -99,7 +128,7 @@ namespace BodyWorkReservation
             public EmConfig EmConfig { get; set; } = new();
             public MpConfig MpConfig { get; set; } = new();
         }
-        public static AppConfig LoadConfig()
+        public static AppConfig LoadAppConfig()
         {
             string filePath = Path.Combine(AppContext.BaseDirectory, APP_SETTING_FILE);
 
@@ -126,6 +155,46 @@ namespace BodyWorkReservation
 
             return appConfig;
         }
+        // メール送信設定ファイル (static)
+        public const string APP_EMAILSETTING_FILE = "appsettings_sendmail.json";
+        public static bool IsEmailConfigLoaded { get; set; } = false;
+        public static class EmailConfig
+        {
+            public static string Subject { get; set; } = string.Empty;
+            public static string FromEmailAddress { get; set; } = string.Empty;
+            public static string[] ToRecipients { get; set; } = [];
+            public static string[] CcRecipients { get; set; } = [];
+            public static string ClientEnc { get; set; } = string.Empty;
+            public static string ClientSecretEnc { get; set; } = string.Empty;
+            public static string TenantEnc { get; set; } = string.Empty;
+        }
+        public static void LoadEmailConfig()
+        {
+            string filePath = Path.Combine(AppContext.BaseDirectory, APP_EMAILSETTING_FILE);
+
+            if (!File.Exists(filePath))
+            {
+                IsEmailConfigLoaded = false;
+                return;
+            }
+
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile(APP_EMAILSETTING_FILE, optional: false, reloadOnChange: true)
+                .Build();
+
+            EmailConfig.Subject = config.GetSection("Subject").Value ?? "";
+            EmailConfig.FromEmailAddress = config.GetSection("FromEmailAddress").Value ?? "";
+            EmailConfig.ToRecipients =
+                config.GetSection("ToRecipients").Get<string[]>() ?? [];
+            EmailConfig.CcRecipients =
+                config.GetSection("CcRecipients").Get<string[]>() ?? [];
+            EmailConfig.ClientEnc = config.GetSection("ClientEnc").Value ?? "";
+            EmailConfig.ClientSecretEnc = config.GetSection("ClientSecretEnc").Value ?? "";
+            EmailConfig.TenantEnc = config.GetSection("TenantEnc").Value ?? "";
+
+            IsEmailConfigLoaded = true;
+        }
 
 
 
@@ -140,6 +209,8 @@ namespace BodyWorkReservation
         {
             public DateTime ReservDt { get; set; }  // 予約日
             public int TimeSlot { get; set; }       // 時間帯
+            public DateTime StDt { get; set; }      // 開始時刻
+            public DateTime EdDt { get; set; }      // 終了時刻
             public string EmpNo { get; set; }       // 従業員番号
             public string EmpName { get; set; }     // 従業員名
             public string Treatment { get; set; }   // 施術内容
@@ -149,6 +220,8 @@ namespace BodyWorkReservation
             {
                 ReservDt = DateTime.MinValue;
                 TimeSlot = 0;
+                StDt = DateTime.MinValue;
+                EdDt = DateTime.MinValue;
                 EmpNo = "";
                 EmpName = "";
                 Treatment = "";
@@ -158,15 +231,26 @@ namespace BodyWorkReservation
             {
                 ReservDt = (order != null) ? order.ReservDt : DateTime.MinValue;
                 TimeSlot = (order != null) ? order.TimeSlot : 0;
+                StDt = (order != null) ? order.StDt : DateTime.MinValue;
+                EdDt = (order != null) ? order.EdDt : DateTime.MinValue;
                 EmpNo = (order != null) ? order.EmpNo : "";
                 EmpName = (order != null) ? order.EmpName : "";
                 Treatment = (order != null) ? order.Treatment : "";
                 Note = (order != null) ? order.Note : "";
             }
-            public Order(DateTime reservdt, int timeslot, string empno, string empname, string treatment, string note)
+            public Order(DateTime reservdt
+                , int timeslot
+                , DateTime stdt
+                , DateTime eddt
+                , string empno
+                , string empname
+                , string treatment
+                , string note)
             {
                 ReservDt = reservdt;
                 TimeSlot = timeslot;
+                StDt = stdt;
+                EdDt = eddt;
                 EmpNo = empno;
                 EmpName = empname;
                 Treatment = treatment;
@@ -229,6 +313,31 @@ namespace BodyWorkReservation
                     break;
                 }
             }
+        }
+
+        // タイムスロットの取得（予約日によって変化する）
+        public static string[] GetTimeSlotByDate(DateTime d)
+        {
+            // 2026/09 以降のタイムスロット時間帯
+            if (d >= new DateTime(2026, 9, 1) && d < new DateTime(2027, 11, 1))
+            {
+                return TIMESLOT202609;
+            }
+
+            // 2027/11 以降のタイムスロット時間帯（テストで使用。202711までには消す事）
+            if (d >= new DateTime(2027, 11, 1) && d < new DateTime(2099, 12, 1))
+            {
+                return TIMESLOT202711;
+            }
+
+            // 2099/12 以降のタイムスロット時間帯
+            if (d >= new DateTime(2099, 12, 1))
+            {
+                return TIMESLOT209912;
+            }
+
+            // それ以外は基本タイムスロット時間帯
+            return TIMESLOT_NAME;
         }
 
         // デバイス一覧に RC-S380 または PaSoRi が存在するかを確認する
@@ -356,14 +465,97 @@ namespace BodyWorkReservation
                         FileName = @savefullpath,
                         UseShellExecute = true
                     };
-                    Process.Start(psi);
+                    System.Diagnostics.Process.Start(psi);
                 }
             }
-
-
         }
 
 
+        // Microsoft Graph API v6 メール送信
+        public static async Task SendScreenshotMailAsync(Byte[] pngBytes, string messageBody)
+        {
+            try
+            {
+                // ① 認証（Client Credentials Flow）
+                var dpc = new DecryptPasswordClass();
+                dpc.DecryptPassword(EmailConfig.ClientEnc, out string clientId);
+                string clientSecret = EmailConfig.ClientSecretEnc;
+                dpc.DecryptPassword(EmailConfig.TenantEnc, out string tenantId);
+                var app = ConfidentialClientApplicationBuilder.Create(clientId)
+                    .WithClientSecret(clientSecret)
+                    .WithTenantId(tenantId)
+                    .Build();
+
+                var scopes = new[] { "https://graph.microsoft.com/.default" };
+                var token = await app.AcquireTokenForClient(scopes).ExecuteAsync();
+
+                var httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", token.AccessToken);
+
+                var graphClient = new GraphServiceClient(httpClient);
+
+                // ② To 送信先メールアドレスのリストを作成 
+                var toRecipientsList = new List<Recipient>();
+                foreach (var to in EmailConfig.ToRecipients)
+                {
+                    toRecipientsList.Add(new Recipient { EmailAddress = new EmailAddress { Address = to } });
+                }
+
+                // ③ CC 送信先メールアドレスのリストを作成
+                var ccRecipientsList = new List<Recipient>();
+                foreach (var cc in EmailConfig.CcRecipients)
+                {
+                    ccRecipientsList.Add(new Recipient { EmailAddress = new EmailAddress { Address = cc } });
+                }
+
+                // ④ メール作成（Graph SDK v6の書き方）
+                var mailBody = new SendMailPostRequestBody
+                {
+                    Message = new Microsoft.Graph.Models.Message
+                    {
+                        Subject = EmailConfig.Subject, //"[自動送信] からだや予約送信",
+                        Body = new ItemBody
+                        {
+                            ContentType = BodyType.Text,
+                            Content = messageBody
+                        },
+
+                        // 送信先メールアドレス（To）
+                        ToRecipients = toRecipientsList,
+
+                        // CC
+                        CcRecipients = ccRecipientsList,
+
+                        // 添付ファイル（今回はスクショ）
+                        Attachments =
+                        [
+                            new FileAttachment
+                            {
+                                OdataType = "#microsoft.graph.fileAttachment",
+                                Name = "screenshot.png",
+                                ContentBytes = pngBytes
+                            }
+                        ]
+                    },
+                    SaveToSentItems = true
+                };
+
+                // ⑤ 送信（Graph SDK v6の書き方）
+                await graphClient.Users[EmailConfig.FromEmailAddress] // 送信元メールアドレス
+                    .SendMail
+                    .PostAsync(mailBody);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("メール送信エラー: " + ex.Message, Common.PROGRAM_TITLE, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+        /*
+         * メソッド関連ここまで
+         */
 
 
 

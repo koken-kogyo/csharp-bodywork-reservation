@@ -188,7 +188,7 @@
     <value>a</value>
   </data>
   <data name="BtnUnderstand" xml:space="preserve">
-    <value>了解しました。</value>
+    <value>了解しました</value>
   </data>
   <data name="MsgTreatmentRequired" xml:space="preserve">
     <value>施術内容を選択してください．</value>

@@ -151,7 +151,7 @@ namespace BodyWorkReservation.Properties {
         }
         
         /// <summary>
-        ///   了解しました。 に類似しているローカライズされた文字列を検索します。
+        ///   了解しました に類似しているローカライズされた文字列を検索します。
         /// </summary>
         internal static string BtnUnderstand {
             get {

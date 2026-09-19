@@ -45,7 +45,7 @@
             buttonUnderstand.Name = "buttonUnderstand";
             buttonUnderstand.Size = new Size(367, 85);
             buttonUnderstand.TabIndex = 0;
-            buttonUnderstand.Text = "了解";
+            buttonUnderstand.Text = "了解しました";
             buttonUnderstand.UseVisualStyleBackColor = true;
             buttonUnderstand.Click += ButtonUnderstand_Click;
             // 

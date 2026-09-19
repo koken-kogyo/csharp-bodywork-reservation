@@ -18,7 +18,7 @@ namespace BodyWorkReservation
         {
             bool ret = true;
 
-            var appConfig = Common.LoadConfig();
+            var appConfig = Common.LoadAppConfig();
             var mpConfig = appConfig.MpConfig;
             mpSchema = mpConfig.SCHEMA;
 
@@ -77,12 +77,13 @@ namespace BodyWorkReservation
                 var note = (o.Note == string.Empty) ? "null" : "'" + o.Note + "'";
                 sql = "insert into "
                     + mpSchema + ".kd7000 "
-                    + "(RESERVDT,TIMESLOT,EMPNO,TREATMENT,NOTE,INSTDT) "
+                    + "(RESERVDT,TIMESLOT,STDT,EDDT,EMPNO,EMPNM,TREATMENT,NOTE,INSTDT) "
                     + "values ("
-                    + $"'{o.ReservDt}',{o.TimeSlot},'{o.EmpNo}','{o.Treatment}',{note}, now()) "
+                    + $"'{o.ReservDt}',{o.TimeSlot},'{o.StDt}','{o.EdDt}','{o.EmpNo}','{o.EmpName}','{o.Treatment}',{note}, now()) "
                     + "on duplicate key update "
                     + "TREATMENT = values(TREATMENT), "
-                    + "NOTE = values(NOTE)";
+                    + "NOTE = values(NOTE), "
+                    + "UPDTDT = now()";
                 using (MySqlCommand myCmd = new(sql, mpCnn))
                 {
                     ret = myCmd.ExecuteNonQuery();
@@ -194,9 +195,8 @@ namespace BodyWorkReservation
                 int count = _thursdays.Count;
                 var reservDtF = _thursdays[0].ToString("yyyy-MM-dd");
                 var reservDtT = _thursdays[count - 1].ToString("yyyy-MM-dd");
-                sql = "select a.*, b.NAME from "
-                    + mpSchema + ".kd7000 a "
-                    + "inner join km0010 b on b.EMPNO=a.EMPNO "
+                sql = "select * from "
+                    + mpSchema + ".kd7000 "
                     + "where "
                     + $"RESERVDT between '{reservDtF}' and '{reservDtT}'"
                 ;
