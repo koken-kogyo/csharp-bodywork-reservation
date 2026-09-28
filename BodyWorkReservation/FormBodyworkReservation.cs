@@ -518,9 +518,16 @@ namespace BodyWorkReservation
                     int colIdx = cell.ColumnIndex;
                     if (cell.Value is Common.Order order)
                     {
+                        bool _isFullTimeEmployee = 
+                            (order.EmpNo.StartsWith('1') || order.EmpNo.StartsWith('2') ||
+                            order.EmpNo.StartsWith("01") || order.EmpNo.StartsWith("02"))
+                            ? true
+                            : false;
                         // 自分の予約に色を付ける
                         cell.Style.BackColor = (order.EmpNo == _empno || _isAdministrator)
+                            ? (_isFullTimeEmployee) 
                             ? dataGridView1.DefaultCellStyle.SelectionBackColor
+                            : Color.LimeGreen
                             : Color.LightSlateGray;
 
                         // ②に予約が入っている時は①の予約を出来ないようグレーアウトする
