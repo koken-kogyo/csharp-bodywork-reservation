@@ -472,7 +472,7 @@ namespace BodyWorkReservation
 
 
         // Microsoft Graph API v6 メール送信
-        public static async Task SendScreenshotMailAsync(Byte[] pngBytes, string messageBody)
+        public static async Task SendScreenshotMailAsync(Byte[] jpgBytes, string messageBody)
         {
             try
             {
@@ -533,8 +533,8 @@ namespace BodyWorkReservation
                             new FileAttachment
                             {
                                 OdataType = "#microsoft.graph.fileAttachment",
-                                Name = "screenshot.png",
-                                ContentBytes = pngBytes
+                                Name = "screenshot.jpg",
+                                ContentBytes = jpgBytes
                             }
                         ]
                     },

@@ -182,7 +182,7 @@
     <value>Please bring the fee of 2,900 yen with you on the day.</value>
   </data>
   <data name="Announce3FullTimeEmployee" xml:space="preserve">
-    <value>Company subsidy of ¥1,400; payroll deduction.</value>
+    <value>Payroll deduction.</value>
   </data>
   <data name="Announce3OtherEmployee" xml:space="preserve">
     <value>a</value>

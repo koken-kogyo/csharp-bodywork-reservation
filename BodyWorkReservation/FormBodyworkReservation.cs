@@ -1,6 +1,8 @@
 ﻿using PCSC;
 using PCSC.Exceptions;
 using PCSC.Monitoring;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using Timer = System.Windows.Forms.Timer;
 
 namespace BodyWorkReservation
@@ -168,10 +170,12 @@ namespace BodyWorkReservation
         private void AdjustFontSize()
         {
             if (this.WindowState == FormWindowState.Minimized) return;
-            int formWidth = this.ClientSize.Width;
+            float scale = this.DeviceDpi / 96.0f;
+            float formWidth = this.ClientSize.Width / scale;
 
             // 横幅に応じてフォントサイズを決める（レスポンシブ）
-            float fontSize = formWidth * 0.014f;   // 実務で最も自然に見える係数
+            float fontSize = formWidth * 0.017f;
+            float fontSizeM = formWidth * 0.021f;
 
             // 最小・最大フォントサイズ（崩れ防止）
             if (fontSize < 10f) fontSize = 10f;
@@ -187,8 +191,8 @@ namespace BodyWorkReservation
             labelEmpName.AutoSize = false;
             labelEmpName.TextAlign = ContentAlignment.MiddleRight;
             labelEmpName.Font = font;
+            labelEmpName.Location = new Point(labelEmpName.Location.X, 25);
 
-            float fontSizeM = formWidth * 0.018f;
             var fontM = new Font("HGPｺﾞｼｯｸE", fontSizeM);
             labelMonthly.Font = fontM;
             comboMonth.Font = fontM;
@@ -205,6 +209,25 @@ namespace BodyWorkReservation
             buttonExportExcel.Height = h;
             buttonExportExcel.Top = base_y - h;
             buttonExportExcel.Left = buttonNextMonth.Right + 12;
+
+
+            var screen = Screen.FromControl(this);
+
+            float dpiX;
+            float dpiY;
+
+            using (Graphics g = this.CreateGraphics())
+            {
+                dpiX = g.DpiX;
+                dpiY = g.DpiY;
+            }
+
+            labelFelicaIDm2.Text =
+                $"Resolution={screen.Bounds.Width}x{screen.Bounds.Height} " +
+                $"WorkingArea={screen.WorkingArea.Width}x{screen.WorkingArea.Height} " +
+                $"Form={this.Width}x{this.Height} " +
+                $"DPI={dpiX}/{dpiY} " +
+                $"Scale={dpiX / 96:F2}";
 
         }
 
@@ -609,7 +632,8 @@ namespace BodyWorkReservation
             // メール送信が必要な端末にのみメール設定ファイルが存在する
             if (Common.IsEmailConfigLoaded == false) return;
 
-            // スクリーンショットをキャプチャ
+            // スクリーンショットをキャプチャし添付ファイルとする
+            await Task.Delay(1000); // ポップアップ画面が完全に消えるまで1秒待機
             var pngBytes = CaptureMyAppScreen();
 
             // 定型文を付与
@@ -632,14 +656,37 @@ namespace BodyWorkReservation
             var screen = Screen.FromControl(this);
             var bounds = screen.Bounds;
 
+            // 100%でキャプチャ
             using var bmp = new Bitmap(bounds.Width, bounds.Height);
             using (var g = Graphics.FromImage(bmp))
             {
                 g.CopyFromScreen(bounds.X, bounds.Y, 0, 0, bounds.Size);
             }
 
+            // 50%に縮小
+            int w = bmp.Width / 2;
+            int h = bmp.Height / 2;
+            using var smallBmp = new Bitmap(w, h);
+            using (var g = Graphics.FromImage(smallBmp))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.DrawImage(bmp, 0, 0, w, h);
+            }
+
+            // JPEG品質85%でさらに縮小
+            var jpgEncoder = ImageCodecInfo.GetImageDecoders()
+                .First(c => c.FormatID == ImageFormat.Jpeg.Guid);
+            var encoderParams = new EncoderParameters(1);
+            encoderParams.Param[0] =
+                new EncoderParameter(
+                    System.Drawing.Imaging.Encoder.Quality,
+                    85L);
+
             using var ms = new MemoryStream();
-            bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            //bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png); // 等倍でのPNG保存の元コード
+            smallBmp.Save(ms, jpgEncoder, encoderParams);
             return ms.ToArray();
         }
 
@@ -849,7 +896,8 @@ namespace BodyWorkReservation
                 var idm = GetFelicaIDm();
                 if (idm != null)
                 {
-                    string felicaid = BitConverter.ToString(idm);
+                    string idmstr = BitConverter.ToString(idm);
+                    string felicaid = idmstr.ToLower().Replace("-", ""); // 英小文字ハイフンなしに変換
                     var dt = DBManager_MySQL.FeliCaID検索(felicaid);
                     if (dt.Rows.Count == 0)
                     {

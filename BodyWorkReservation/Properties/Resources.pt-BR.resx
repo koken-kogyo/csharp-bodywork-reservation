@@ -182,7 +182,7 @@
     <value>Por favor, traga a taxa de utilização de 2.900 ienes no dia da sua visita.</value>
   </data>
   <data name="Announce3FullTimeEmployee" xml:space="preserve">
-    <value>Subsídio da empresa: 1.400 ienes (descontados do salário)</value>
+    <value>descontados do salário</value>
   </data>
   <data name="Announce3OtherEmployee" xml:space="preserve">
     <value>a</value>

@@ -63,20 +63,20 @@
             // labelAnnounce3
             // 
             labelAnnounce3.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            labelAnnounce3.Font = new Font("HGPｺﾞｼｯｸE", 18F, FontStyle.Regular, GraphicsUnit.Point, 128);
-            labelAnnounce3.ForeColor = SystemColors.ControlDarkDark;
-            labelAnnounce3.Location = new Point(84, 206);
+            labelAnnounce3.Font = new Font("HGPｺﾞｼｯｸE", 27.75F);
+            labelAnnounce3.ForeColor = SystemColors.ControlText;
+            labelAnnounce3.Location = new Point(84, 197);
             labelAnnounce3.Margin = new Padding(5, 0, 5, 0);
             labelAnnounce3.Name = "labelAnnounce3";
-            labelAnnounce3.Size = new Size(957, 62);
+            labelAnnounce3.Size = new Size(881, 62);
             labelAnnounce3.TabIndex = 2;
-            labelAnnounce3.Text = "会社補助額1,400円・給与天引き";
+            labelAnnounce3.Text = "給与天引き";
             labelAnnounce3.TextAlign = ContentAlignment.TopRight;
             // 
             // labelAnnounce2
             // 
             labelAnnounce2.Font = new Font("HGPｺﾞｼｯｸE", 27.75F, FontStyle.Regular, GraphicsUnit.Point, 128);
-            labelAnnounce2.Location = new Point(34, 99);
+            labelAnnounce2.Location = new Point(34, 95);
             labelAnnounce2.Margin = new Padding(5, 0, 5, 0);
             labelAnnounce2.Name = "labelAnnounce2";
             labelAnnounce2.Size = new Size(995, 97);

@@ -88,7 +88,7 @@ namespace BodyWorkReservation.Properties {
         }
         
         /// <summary>
-        ///   会社補助額1,400円・給与天引き に類似しているローカライズされた文字列を検索します。
+        ///   給与天引き に類似しているローカライズされた文字列を検索します。
         /// </summary>
         internal static string Announce3FullTimeEmployee {
             get {

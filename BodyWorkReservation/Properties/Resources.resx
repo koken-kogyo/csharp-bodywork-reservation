@@ -182,7 +182,7 @@
     <value>利用料金2,900円 を当日お持ちください。</value>
   </data>
   <data name="Announce3FullTimeEmployee" xml:space="preserve">
-    <value>会社補助額1,400円・給与天引き</value>
+    <value>給与天引き</value>
   </data>
   <data name="Announce3OtherEmployee" xml:space="preserve">
     <value>a</value>
