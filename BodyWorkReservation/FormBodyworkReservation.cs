@@ -539,16 +539,17 @@ namespace BodyWorkReservation
                 {
                     int rowIdx = cell.RowIndex;
                     int colIdx = cell.ColumnIndex;
+                    cell.Style.ForeColor = Color.White;
                     if (cell.Value is Common.Order order)
                     {
-                        bool _isFullTimeEmployee = 
+                        bool _isFullTimeEmployee =
                             (order.EmpNo.StartsWith('1') || order.EmpNo.StartsWith('2') ||
                             order.EmpNo.StartsWith("01") || order.EmpNo.StartsWith("02"))
                             ? true
                             : false;
                         // 自分の予約に色を付ける
                         cell.Style.BackColor = (order.EmpNo == _empno || _isAdministrator)
-                            ? (_isFullTimeEmployee) 
+                            ? (_isFullTimeEmployee)
                             ? dataGridView1.DefaultCellStyle.SelectionBackColor
                             : Color.LimeGreen
                             : Color.LightSlateGray;
@@ -557,7 +558,7 @@ namespace BodyWorkReservation
                         // 　タイムスロット時間帯を変更した場合はここの判定式も変更しないといけないので注意
                         // 　ソースを「タイムスロット時間帯」で検索して修正してください
                         if (rowIdx == 1 &&
-                            _currentDate >= new DateTime(2026, 9, 1) && 
+                            _currentDate >= new DateTime(2026, 9, 1) &&
                             _currentDate < new DateTime(2027, 11, 1)
                             )
                         {
@@ -575,7 +576,7 @@ namespace BodyWorkReservation
                         // ②に予約が入っていなくても①に予約が入っている時はグレーアウトする
                         // 　タイムスロット時間帯を変更した場合はここの判定式も変更しないといけないので注意
                         // 　ソースを「タイムスロット時間帯」で検索して修正してください
-                        if (rowIdx == 1 && 
+                        if (rowIdx == 1 &&
                             dataGridView1[colIdx, 0].Value is Common.Order &&
                             _currentDate >= new DateTime(2026, 9, 1) &&
                             _currentDate < new DateTime(2027, 11, 1)
@@ -584,19 +585,33 @@ namespace BodyWorkReservation
                             dataGridView1[colIdx, 1].Style.BackColor = Color.LightSlateGray;
                             dataGridView1[colIdx, 1].Value = "－";
                         }
-                        else
-                        {
-                            dataGridView1[colIdx, rowIdx].Style.BackColor =
-                                dataGridView1.DefaultCellStyle.BackColor;
-                        }
+
                         // ③当然過去日付はグレーアウトする
-                        if (_thursdays[colIdx] < DateTime.Today)
+                        else if (_thursdays[colIdx] < DateTime.Today)
                         {
                             cell.Style.BackColor = Color.LightSlateGray;
                             cell.Value = "－";
                         }
+
+                        // ④ 当日15:10以降の予約①②は不可とする
+                        else if ((rowIdx == 0 || rowIdx == 1) &&
+                            _currentDate >= new DateTime(2026, 9, 1) &&
+                            _currentDate < new DateTime(2027, 11, 1) &&
+                            _thursdays[colIdx] == DateTime.Today.AddDays(0) &&
+                            DateTime.Now.TimeOfDay >= new TimeSpan(15, 10, 0))
+                        {
+                            cell.Style.BackColor = Color.LightSlateGray;
+                            cell.Value = "－";
+                        }
+
+                        else
+                        {
+                            dataGridView1[colIdx, rowIdx].Style.BackColor =
+                                dataGridView1.DefaultCellStyle.BackColor;
+                            cell.Style.ForeColor = Color.LightSlateGray;
+                            cell.Value = "空き";
+                        }
                     }
-                    cell.Style.ForeColor = Color.White;
                 }
             }
         }
