@@ -23,6 +23,9 @@ namespace BodyWorkReservation
         private readonly IdleMessageFilter _filter = new();
         private readonly Timer idleTimer = new();
 
+        // 1分毎定期チェック
+        private readonly Timer _timer = new();
+
         // コンストラクタ
         public FormBodyworkReservation()
         {
@@ -66,6 +69,19 @@ namespace BodyWorkReservation
 
             // カードリーダー初期化
             InitializePcscMonitor();
+
+            // 1分毎定期チェック
+#pragma warning disable CS8622
+            _timer.Interval = 60 * 1000; 
+            _timer.Tick += Timer_Tick;
+            _timer.Start();
+#pragma warning restore CS8622
+        }
+
+        private void Timer_Tick(object sender, EventArgs e)
+        {
+            自分の予約一覧に色を付ける();
+            labelFelicaIDm2.Text = DateTime.Now.ToString("yyyy/MM/dd HH:mm");
         }
 
         private void ReadMonthlyData()
@@ -412,7 +428,7 @@ namespace BodyWorkReservation
             {
                 if (cell.Style.BackColor != Color.LightSlateGray)
                 {
-                    var msg = (_monitor != null) ? "社員証を読み取るか、" : "";
+                    var msg = (_monitor != null) ? "タイムカードを読み取るか、" : "";
                     msg += "従業員番号を入力してください．";
                     MessageBox.Show(msg, "予約登録", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     textBoxEmpNo.Focus();
@@ -539,33 +555,33 @@ namespace BodyWorkReservation
                 {
                     int rowIdx = cell.RowIndex;
                     int colIdx = cell.ColumnIndex;
-                    cell.Style.ForeColor = Color.White;
+                    DateTime 開始日時 = 開始時刻取得(rowIdx, colIdx);
                     if (cell.Value is Common.Order order)
                     {
-                        bool _isFullTimeEmployee =
-                            (order.EmpNo.StartsWith('1') || order.EmpNo.StartsWith('2') ||
-                            order.EmpNo.StartsWith("01") || order.EmpNo.StartsWith("02"))
-                            ? true
-                            : false;
-                        // 自分の予約に色を付ける
-                        cell.Style.BackColor = (order.EmpNo == _empno || _isAdministrator)
-                            ? (_isFullTimeEmployee)
-                            ? dataGridView1.DefaultCellStyle.SelectionBackColor
-                            : Color.LimeGreen
-                            : Color.LightSlateGray;
+                        // ⓪ フォント色のデフォルトをグレーにしておく
+                        cell.Style.ForeColor = Color.FromArgb(200, 200, 200);
 
-                        // ②に予約が入っている時は①の予約を出来ないようグレーアウトする
-                        // 　タイムスロット時間帯を変更した場合はここの判定式も変更しないといけないので注意
-                        // 　ソースを「タイムスロット時間帯」で検索して修正してください
-                        if (rowIdx == 1 &&
-                            _currentDate >= new DateTime(2026, 9, 1) &&
-                            _currentDate < new DateTime(2027, 11, 1)
-                            )
+                        // ① 自分の予約に色を付ける
+                        if (order.EmpNo == _empno)
                         {
-                            dataGridView1[colIdx, 0].Style.BackColor = Color.LightSlateGray;
-                            dataGridView1[colIdx, 0].Value = "－";
+                            bool _isFullTimeEmployee =
+                                (order.EmpNo.StartsWith('1') || order.EmpNo.StartsWith('2') ||
+                                order.EmpNo.StartsWith("01") || order.EmpNo.StartsWith("02"))
+                                ? true
+                                : false;
+                            cell.Style.ForeColor = Color.White;
+                            cell.Style.BackColor = (_isFullTimeEmployee)
+                                ? dataGridView1.DefaultCellStyle.SelectionBackColor
+                                : Color.LimeGreen;
                         }
-                        // ③当然過去日付はグレーアウトする
+
+                        // ② 他人の予約に色を付ける
+                        else
+                        {
+                            cell.Style.BackColor = Color.LightSlateGray;
+                        }
+
+                        // ③ 過去予約はグレーアウトで上書きする
                         if (_thursdays[colIdx] < DateTime.Today)
                         {
                             cell.Style.BackColor = Color.LightSlateGray;
@@ -573,27 +589,16 @@ namespace BodyWorkReservation
                     }
                     else
                     {
-                        // ②に予約が入っていなくても①に予約が入っている時はグレーアウトする
-                        // 　タイムスロット時間帯を変更した場合はここの判定式も変更しないといけないので注意
-                        // 　ソースを「タイムスロット時間帯」で検索して修正してください
-                        if (rowIdx == 1 &&
-                            dataGridView1[colIdx, 0].Value is Common.Order &&
-                            _currentDate >= new DateTime(2026, 9, 1) &&
-                            _currentDate < new DateTime(2027, 11, 1)
-                            )
-                        {
-                            dataGridView1[colIdx, 1].Style.BackColor = Color.LightSlateGray;
-                            dataGridView1[colIdx, 1].Value = "－";
-                        }
+                        cell.Style.ForeColor = Color.FromArgb(200, 200, 200);
 
-                        // ③当然過去日付はグレーアウトする
-                        else if (_thursdays[colIdx] < DateTime.Today)
+                        // ④ 過去空き枠はグレーアウトする
+                        if (_thursdays[colIdx] < DateTime.Today)
                         {
                             cell.Style.BackColor = Color.LightSlateGray;
                             cell.Value = "－";
                         }
 
-                        // ④ 当日15:10以降の予約①②は不可とする
+                        // ⑤ 当日15:10以降の予約①②は不可とする
                         else if ((rowIdx == 0 || rowIdx == 1) &&
                             _currentDate >= new DateTime(2026, 9, 1) &&
                             _currentDate < new DateTime(2027, 11, 1) &&
@@ -604,12 +609,42 @@ namespace BodyWorkReservation
                             cell.Value = "－";
                         }
 
+                        // ⑥ 当日の予約は1時間前まで
+                        else if (_thursdays[colIdx] == DateTime.Today.AddDays(0) &&
+                            DateTime.Now >= 開始日時.AddHours(-1))
+                        {
+                            cell.Style.BackColor = Color.LightSlateGray;
+                            cell.Value = "－";
+                        }
+
+                        // ⑦ 予約枠ロック①
+                        else if (rowIdx == 0 &&
+                            dataGridView1[colIdx, 1].Value is Common.Order &&
+                            _currentDate >= new DateTime(2026, 9, 1) &&
+                            _currentDate < new DateTime(2027, 11, 1)
+                            )
+                        {
+                            dataGridView1[colIdx, 0].Style.BackColor = Color.LightSlateGray;
+                            dataGridView1[colIdx, 0].Value = "－";
+                        }
+
+                        // ⑧ 予約枠ロック②
+                        else if (rowIdx == 1 &&
+                            dataGridView1[colIdx, 0].Value is Common.Order &&
+                            _currentDate >= new DateTime(2026, 9, 1) &&
+                            _currentDate < new DateTime(2027, 11, 1)
+                            )
+                        {
+                            dataGridView1[colIdx, 1].Style.BackColor = Color.LightSlateGray;
+                            dataGridView1[colIdx, 1].Value = "－";
+                        }
+
+                        // ⑨ 予約可能
                         else
                         {
                             dataGridView1[colIdx, rowIdx].Style.BackColor =
                                 dataGridView1.DefaultCellStyle.BackColor;
-                            cell.Style.ForeColor = Color.LightSlateGray;
-                            cell.Value = "空き";
+                            cell.Value = "○";
                         }
                     }
                 }
@@ -896,7 +931,7 @@ namespace BodyWorkReservation
         {
             Invoke(new Action(() =>
             {
-                labelEmpName.Text = "社員証を読み取ってください";
+                labelEmpName.Text = "タイムカードを読み取ってください";
             }));
         }
 
@@ -1080,7 +1115,7 @@ namespace BodyWorkReservation
             textBoxEmpNo.Text = string.Empty;
             labelEmpName.Text = string.Empty;
             labelFelicaIDm2.Text = string.Empty;
-            if (_monitor != null) labelEmpName.Text = "社員証を読み取ってください";
+            if (_monitor != null) labelEmpName.Text = "タイムカードを読み取ってください";
             buttonExportExcel.Visible = false;
             自分の予約一覧に色を付ける();
         }
