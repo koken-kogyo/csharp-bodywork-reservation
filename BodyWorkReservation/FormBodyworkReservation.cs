@@ -80,8 +80,9 @@ namespace BodyWorkReservation
 
         private void Timer_Tick(object sender, EventArgs e)
         {
+            予約データ取得();
             自分の予約一覧に色を付ける();
-            labelFelicaIDm2.Text = DateTime.Now.ToString("yyyy/MM/dd HH:mm");
+            labelFelicaIDm2.Text = DateTime.Now.ToString("yyyy/MM/dd HH:mm 現在");
         }
 
         private void ReadMonthlyData()
@@ -238,13 +239,14 @@ namespace BodyWorkReservation
                 dpiY = g.DpiY;
             }
 
+            /*
             labelFelicaIDm2.Text =
                 $"Resolution={screen.Bounds.Width}x{screen.Bounds.Height} " +
                 $"WorkingArea={screen.WorkingArea.Width}x{screen.WorkingArea.Height} " +
                 $"Form={this.Width}x{this.Height} " +
                 $"DPI={dpiX}/{dpiY} " +
                 $"Scale={dpiX / 96:F2}";
-
+            */
         }
 
         // キーボードショートカット「Esc」でプログラム終了
@@ -437,6 +439,7 @@ namespace BodyWorkReservation
                 return;
             }
 #pragma warning disable CS8622
+            _timer.Stop();
             idleTimer.Stop();
             _filter.UserActivity -= ResetIdleTimer;
             //Debug.Print(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " StopCellClick");
@@ -491,6 +494,12 @@ namespace BodyWorkReservation
 備考：{order.Note}";
                         SendMail(msg);
                     }
+                    else
+                    {
+                        // データベース読み込み
+                        予約データ取得();
+                        自分の予約一覧に色を付ける();
+                    }
                 }
             }
             else
@@ -539,6 +548,7 @@ namespace BodyWorkReservation
             }
             自分の予約一覧に色を付ける();
 #pragma warning disable CS8622
+            _timer.Start();
             idleTimer.Start();
             _filter.UserActivity += ResetIdleTimer;
             //Debug.Print(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " StartCellClick");
@@ -556,21 +566,32 @@ namespace BodyWorkReservation
                     int rowIdx = cell.RowIndex;
                     int colIdx = cell.ColumnIndex;
                     DateTime 開始日時 = 開始時刻取得(rowIdx, colIdx);
+                    // 過去日判定
+                    bool isPast =
+                        (_thursdays[colIdx] < DateTime.Today) ||
+                        (_thursdays[colIdx] == DateTime.Today && DateTime.Now >= 開始日時.AddHours(-1));
+                    // 当日①②の変更は15：10まで
+                    if ((rowIdx == 0 || rowIdx == 1) &&
+                        _currentDate >= new DateTime(2026, 9, 1) &&
+                        _currentDate < new DateTime(2027, 11, 1) &&
+                        _thursdays[colIdx] == DateTime.Today && DateTime.Now.TimeOfDay >= new TimeSpan(15, 10, 0))
+                    {
+                        isPast = true;
+                    }
+
                     if (cell.Value is Common.Order order)
                     {
-                        // ⓪ フォント色のデフォルトをグレーにしておく
-                        cell.Style.ForeColor = Color.FromArgb(200, 200, 200);
-
                         // ① 自分の予約に色を付ける
                         if (order.EmpNo == _empno)
                         {
-                            bool _isFullTimeEmployee =
+                            bool isFullTimeEmployee =
                                 (order.EmpNo.StartsWith('1') || order.EmpNo.StartsWith('2') ||
                                 order.EmpNo.StartsWith("01") || order.EmpNo.StartsWith("02"))
                                 ? true
                                 : false;
                             cell.Style.ForeColor = Color.White;
-                            cell.Style.BackColor = (_isFullTimeEmployee)
+                            cell.Style.BackColor = (isPast) ? Color.LightSlateGray
+                                : (isFullTimeEmployee)
                                 ? dataGridView1.DefaultCellStyle.SelectionBackColor
                                 : Color.LimeGreen;
                         }
@@ -578,12 +599,7 @@ namespace BodyWorkReservation
                         // ② 他人の予約に色を付ける
                         else
                         {
-                            cell.Style.BackColor = Color.LightSlateGray;
-                        }
-
-                        // ③ 過去予約はグレーアウトで上書きする
-                        if (_thursdays[colIdx] < DateTime.Today)
-                        {
+                            cell.Style.ForeColor = Color.FromArgb(200, 200, 200);
                             cell.Style.BackColor = Color.LightSlateGray;
                         }
                     }
@@ -758,16 +774,16 @@ namespace BodyWorkReservation
         {
             if (_thursdays == null || _thursdays.Count == 0) return;
 
-            //// データグリッドビューのセルを初期化
-            //foreach (DataGridViewRow row in dataGridView1.Rows)
-            //{
-            //    foreach (DataGridViewCell cell in row.Cells)
-            //    {
-            //        cell.Value = null;
-            //        cell.Style.ForeColor = dataGridView1.DefaultCellStyle.ForeColor;
-            //        cell.Style.BackColor = dataGridView1.DefaultCellStyle.BackColor;
-            //    }
-            //}
+            // データグリッドビューのセルを初期化
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                foreach (DataGridViewCell cell in row.Cells)
+                {
+                    cell.Value = null;
+                    cell.Style.ForeColor = dataGridView1.DefaultCellStyle.ForeColor;
+                    cell.Style.BackColor = dataGridView1.DefaultCellStyle.BackColor;
+                }
+            }
 
             var dt = DBManager_MySQL.予約データ取得(_thursdays);
             buttonExportExcel.Enabled = (dt.Rows.Count > 0);
@@ -1114,10 +1130,9 @@ namespace BodyWorkReservation
             _isAdministrator = false;
             textBoxEmpNo.Text = string.Empty;
             labelEmpName.Text = string.Empty;
-            labelFelicaIDm2.Text = string.Empty;
             if (_monitor != null) labelEmpName.Text = "タイムカードを読み取ってください";
             buttonExportExcel.Visible = false;
-            自分の予約一覧に色を付ける();
+            Timer_Tick(sender, e);
         }
 
         /*

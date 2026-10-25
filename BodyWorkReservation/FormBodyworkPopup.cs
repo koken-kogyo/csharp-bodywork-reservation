@@ -33,8 +33,23 @@ namespace BodyWorkReservation
             labelTimeSlot.Text = $"{order.StDt:H:m} ～ {order.EdDt:HH:mm}";
             textBoxNote.Text = order.Note;
 
+            // 過去日判定
+            DateTime d = order.ReservDt;
+            int timeslot = order.TimeSlot;
+            bool isPast =
+                (d < DateTime.Today) ||
+                (d == DateTime.Today && DateTime.Now >= order.StDt.AddHours(-1));
+            // 　当日①②の変更は15：10まで
+            if ((timeslot == 0 || timeslot == 1) &&
+                d >= new DateTime(2026, 9, 1) &&
+                d < new DateTime(2027, 11, 1) &&
+                d == DateTime.Today && DateTime.Now.TimeOfDay >= new TimeSpan(15, 10, 0))
+            {
+                isPast = true;
+            }
+
             // 過去オーダーは参照に設定
-            if (order.ReservDt < DateTime.Today)
+            if (isPast)
             {
                 buttonAppoint.Enabled = false;
                 buttonCancelAppoint.Enabled = false;
@@ -98,9 +113,18 @@ namespace BodyWorkReservation
                 MessageBox.Show(Resources.MsgTreatmentRequired, this.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            DBManager_MySQL.予約登録更新(_order);
-            DialogResult = DialogResult.OK;
-            Close();
+            if (!DBManager_MySQL.予約済み確認(_order, Common.LoginID))
+            {
+                MessageBox.Show("その枠は既に予約されています。", this.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                DialogResult = DialogResult.No;
+                Close();
+            }
+            else
+            {
+                DBManager_MySQL.予約登録更新(_order);
+                DialogResult = DialogResult.OK;
+                Close();
+            }
         }
 
         // 「予約取消」ボタン

@@ -63,6 +63,19 @@ namespace BodyWorkReservation
             if (mpCnn != null ) mpCnn = null;
         }
 
+        public static bool 予約済み確認(Common.Order o, string loginid)
+        {
+            Connect();
+            string? empno;
+            string sql = $"select EMPNO from {mpSchema}.kd7000 where RESERVDT='{o.ReservDt}' and TIMESLOT={o.TimeSlot}";
+            using (var cmd = new MySqlCommand(sql, mpCnn))
+            {
+                empno = cmd.ExecuteScalar()?.ToString();
+            }
+            Close();
+            return (empno == null || empno == loginid);
+        }
+
         /// <summary>
         /// からだや予約 新規登録 or 更新
         /// </summary>
