@@ -1,4 +1,5 @@
-﻿using PCSC;
+﻿using Microsoft.VisualBasic;
+using PCSC;
 using PCSC.Exceptions;
 using PCSC.Monitoring;
 using System.Drawing.Drawing2D;
@@ -58,7 +59,7 @@ namespace BodyWorkReservation
                 ? new DateTime(d.Year, d.Month, 1).AddMonths(1)
                 : new DateTime(d.Year, d.Month, 1);
             ReadMonthlyData();
-            
+
             // 最終木曜日の翌日から２０日迄の場合は翌月の予約を表示する
             var lastThursday = _thursdays.LastOrDefault();
             if (lastThursday.Day < d.Day && d.Day <= 20)
@@ -72,7 +73,7 @@ namespace BodyWorkReservation
 
             // 1分毎定期チェック
 #pragma warning disable CS8622
-            _timer.Interval = 60 * 1000; 
+            _timer.Interval = 60 * 1000;
             _timer.Tick += Timer_Tick;
             _timer.Start();
 #pragma warning restore CS8622
@@ -821,6 +822,31 @@ namespace BodyWorkReservation
         private void TextBoxEmpNo_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter) ButtonSearchEmpNo_Click(sender, e);
+        }
+        private void textBoxEmpNo_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == '\b') return; // Backs
+            // 全角→半角
+            string? s = Strings.StrConv(e.KeyChar.ToString(), VbStrConv.Narrow);
+            e.KeyChar = s[0];
+            // 英数字以外は拒否
+            if (!char.IsLetterOrDigit(e.KeyChar))
+            {
+                e.Handled = true;
+                return;
+            }
+            e.KeyChar = char.ToUpperInvariant(e.KeyChar); // 大文字変換
+            if (!(e.KeyChar >= '0' && e.KeyChar <= '9') && !(e.KeyChar >= 'A' && e.KeyChar <= 'Z')) e.Handled = true;
+        }
+        private void textBoxEmpNo_TextChanged(object sender, EventArgs e)
+        {
+            string str = textBoxEmpNo.Text;
+            if ((str.StartsWith("0") && str.Length == 6) ||
+                (!str.StartsWith("0") && str.Length == 5))
+            {
+                if (str.Length == 6) textBoxEmpNo.Text = str.Substring(1, 5);
+                ButtonSearchEmpNo_Click(sender, e);
+            }
         }
         private void ButtonSearchEmpNo_Click(object sender, EventArgs e)
         {

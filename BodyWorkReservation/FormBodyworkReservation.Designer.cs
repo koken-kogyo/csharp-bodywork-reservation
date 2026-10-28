@@ -169,12 +169,15 @@ namespace BodyWorkReservation
             // 
             textBoxEmpNo.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             textBoxEmpNo.ForeColor = SystemColors.ControlDarkDark;
+            textBoxEmpNo.ImeMode = ImeMode.Off;
             textBoxEmpNo.Location = new Point(738, 85);
             textBoxEmpNo.Name = "textBoxEmpNo";
             textBoxEmpNo.Size = new Size(100, 28);
             textBoxEmpNo.TabIndex = 6;
             textBoxEmpNo.TextAlign = HorizontalAlignment.Center;
+            textBoxEmpNo.TextChanged += textBoxEmpNo_TextChanged;
             textBoxEmpNo.KeyDown += TextBoxEmpNo_KeyDown;
+            textBoxEmpNo.KeyPress += textBoxEmpNo_KeyPress;
             // 
             // labelEmpName
             // 
